@@ -35,4 +35,19 @@ jobs:
       - name: Scan without exposing private reports to public logs
         run: |
           mkdir -p reports
-          python -m market_signal_monitor.scanner --mode "$SCAN_MODE" > reports/runtime.log 2>&1
+          args=(--mode "$SCAN_MODE")
+          if [[ "$SCAN_MODE" == "dry-run" ]]; then
+            args+=(--instruments QQQ)
+          fi
+          python -m market_signal_monitor.scanner "${args[@]}" > reports/runtime.log 2>&1
+      - name: Public-safe run summary
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, pathlib
+          p = pathlib.Path('reports/scan.json')
+          if p.exists():
+              r = json.loads(p.read_text())
+              print(json.dumps({k: r[k] for k in ('status', 'duration_seconds', 'delivery_seconds', 'created', 'existing') if k in r}))
+              print('errors:', len(r.get('errors', [])), 'warnings:', len(r.get('warnings', [])))
+          PY
