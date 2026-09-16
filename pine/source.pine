@@ -1,0 +1,131 @@
+//@version=5
+indicator("抄底化出信号 + 蓝黄隧道", overlay=true, max_bars_back=1000)
+
+// ==================== 抄底化出信号 部分 ====================
+// 核心参数和指标计算 - Exactly matching FuTu indicator
+D = ta.ema(close, 12) - ta.ema(close, 26)
+A = ta.ema(D, 9)
+M = (D - A) * 2
+// 使用与FuTu完全相同的计算方式
+// BARSLAST equivalent in Pine
+N1 = ta.barssince(M[1] >= 0 and M < 0)
+MM1 = ta.barssince(M[1] <= 0 and M > 0)
+// 确保N1和MM1不为na
+N1 := nz(N1, 0)
+MM1 := nz(MM1, 0)
+// 价格低点识别 - Direct port from FuTu
+CC1 = ta.lowest(close, N1 + 1)
+CC2 = CC1[MM1 + 1]  // REF equivalent
+CC3 = CC2[MM1 + 1]  // REF equivalent
+// MACD低点识别 - Direct port from FuTu
+DIFL1 = ta.lowest(D, N1 + 1)
+DIFL2 = DIFL1[MM1 + 1]
+DIFL3 = DIFL2[MM1 + 1]
+// 价格高点识别 - Direct port from FuTu
+CH1 = ta.highest(close, MM1 + 1)
+CH2 = CH1[N1 + 1]
+CH3 = CH2[N1 + 1]
+// MACD高点识别 - Direct port from FuTu
+DIFH1 = ta.highest(D, MM1 + 1)
+DIFH2 = DIFH1[N1 + 1]
+DIFH3 = DIFH2[N1 + 1]
+// 抄底信号条件 - Direct port from FuTu
+AAA = (CC1 < CC2) and (DIFL1 > DIFL2) and (M[1] < 0) and (D < 0)
+BBB = (CC1 < CC3) and (DIFL1 < DIFL2) and (DIFL1 > DIFL3) and (M[1] < 0) and (D < 0)
+CCC = (AAA or BBB) and (D < 0)
+LLL = (not CCC[1]) and CCC
+XXX = ((AAA[1] and (DIFL1 <= DIFL2) and (D < A)) or
+       (BBB[1] and (DIFL1 <= DIFL3) and (D < A)))
+JJJ = CCC[1] and (math.abs(D[1]) >= (math.abs(D) * 1.01))
+BLBL = JJJ[1] and CCC and ((math.abs(D[1]) * 1.01) <= math.abs(D))
+DXDX = (not JJJ[1]) and JJJ
+// COUNT function equivalent in Pine
+countCondition(condition, length) =>
+    math.sum(condition ? 1 : 0, length)
+// 抄底警告信号 - Direct port from FuTu
+DJGXX = ((close < CC2 or close < CC1) and
+         ((JJJ[MM1 + 1] or JJJ[MM1]) and
+         (not LLL[1]) and
+         (countCondition(JJJ, 24) >= 1)))
+DJXX = (not (countCondition(DJGXX[1], 2) >= 1)) and DJGXX
+DXX = (XXX or DJXX) and not CCC
+// 卖出信号条件 - Direct port from FuTu
+ZJDBL = (CH1 > CH2) and (DIFH1 < DIFH2) and (M[1] > 0) and (D > 0)
+GXDBL = (CH1 > CH3) and (DIFH1 > DIFH2) and (DIFH1 < DIFH3) and (M[1] > 0) and (D > 0)
+DBBL = (ZJDBL or GXDBL) and (D > 0)
+DBL = (not DBBL[1]) and (DBBL and (D > A))
+DBLXS = ((ZJDBL[1] and (DIFH1 >= DIFH2) and (D > A)) or
+         (GXDBL[1] and (DIFH1 >= DIFH3) and (D > A)))
+DBJG = DBBL[1] and (D[1] >= (D * 1.01))
+DBJGXC = (not DBJG[1]) and DBJG
+DBJGBL = DBJG[1] and (DBBL and ((D[1] * 1.01) <= D))
+// 卖出警告信号 - Direct port from FuTu
+ZZZZZ = ((close > CH2 or close > CH1) and
+         ((DBJG[N1 + 1] or DBJG[N1]) and
+         (not DBL[1]) and
+         (countCondition(DBJG, 23) >= 1)))
+YYYYY = (not (countCondition(ZZZZZ[1], 2) >= 1)) and ZZZZZ
+WWWWW = (DBLXS or YYYYY) and not DBBL
+
+// ==================== 蓝黄隧道 部分 ====================
+// 定义参数，与原指标保持一致
+n1 = input.int(26, "蓝色通道周期", minval=1)
+n2 = input.int(89, "黄色通道周期", minval=1)
+wid = input.int(1, "线宽", minval=1, maxval=5)
+// ==================== EMA 均线部分 ====================
+// EMA 显示控制参数
+show_ema20 = input.bool(true, "显示 EMA 20")
+show_ema50 = input.bool(true, "显示 EMA 50")
+show_ema100 = input.bool(true, "显示 EMA 100")
+show_ema200 = input.bool(true, "显示 EMA 200")
+ema_width = input.int(1, "EMA线宽", minval=1, maxval=5)
+// 计算EMA值
+ema20 = ta.ema(close, 20)
+ema50 = ta.ema(close, 50)
+ema100 = ta.ema(close, 100)
+ema200 = ta.ema(close, 200)
+// 定义粉色系列 - 相同色调，不同饱和度和亮度
+ema_pink_1 = color.rgb(255, 192, 203)    // EMA 20 - 高亮度，低饱和度
+ema_pink_2 = color.rgb(255, 20, 147)     // EMA 50 - 中亮度，高饱和度
+ema_pink_3 = color.rgb(199, 21, 133)     // EMA 100 - 中等亮度，中饱和度
+ema_pink_4 = color.rgb(139, 69, 19)      // EMA 200 - 低亮度，低饱和度
+// 计算蓝色通道 (短期通道，周期为26)
+blueUpperBand = ta.ema(high, n1)
+blueLowerBand = ta.ema(low, n1)
+// 计算黄色通道 (长期通道，周期为89)
+yellowUpperBand = ta.ema(high, n2)
+yellowLowerBand = ta.ema(low, n2)
+// 定义填充区域颜色
+blueColor = color.new(color.blue, 70)
+yellowColor = color.new(color.yellow, 70)
+// 绘制蓝色通道
+blueUpperLine = close > blueUpperBand ? blueUpperBand : na
+blueLowerLine = close < blueLowerBand ? blueLowerBand : na
+blueMidLine = close > blueLowerBand and close < blueUpperBand ? math.avg(blueUpperBand, blueLowerBand) : na
+// 绘制黄色通道
+yellowUpperLine = close > yellowUpperBand ? yellowUpperBand : na
+yellowLowerLine = close < yellowLowerBand ? yellowLowerBand : na
+yellowMidLine = close > yellowLowerBand and close < yellowUpperBand ? math.avg(yellowUpperBand, yellowLowerBand) : na
+// ==================== 绘图部分 ====================
+// 绘制通道区域和线条
+// 黄色通道 (先绘制以便蓝色通道可以覆盖它)
+plot(yellowUpperBand, "黄色上轨", color.yellow, wid)
+plot(yellowLowerBand, "黄色下轨", color.yellow, wid)
+fill(plot(yellowUpperBand, "", color.yellow, 0), plot(yellowLowerBand, "", color.yellow, 0), color=color.new(color.yellow, 90))
+// 蓝色通道
+plot(blueUpperBand, "蓝色上轨", color.blue, wid)
+plot(blueLowerBand, "蓝色下轨", color.blue, wid)
+fill(plot(blueUpperBand, "", color.blue, 0), plot(blueLowerBand, "", color.blue, 0), color=color.new(color.blue, 90))
+// 针对条件显示的线条逻辑
+plotshape(close > blueUpperBand ? blueUpperBand : na, "收盘价高于蓝色上轨", shape.circle, location.absolute, color.blue, 0, "", color.blue, 0)
+plotshape(close < blueLowerBand ? blueLowerBand : na, "收盘价低于蓝色下轨", shape.circle, location.absolute, color.blue, 0, "", color.blue, 0)
+plotshape(close > yellowUpperBand ? yellowUpperBand : na, "收盘价高于黄色上轨", shape.circle, location.absolute, color.yellow, 0, "", color.yellow, 0)
+plotshape(close < yellowLowerBand ? yellowLowerBand : na, "收盘价低于黄色下轨", shape.circle, location.absolute, color.yellow, 0, "", color.yellow, 0)
+// 绘制EMA均线 - 使用不同饱和度和亮度的粉色
+plot(show_ema20 ? ema20 : na, "EMA 20", ema_pink_1, ema_width, display=display.all)
+plot(show_ema50 ? ema50 : na, "EMA 50", ema_pink_2, ema_width, display=display.all)
+plot(show_ema100 ? ema100 : na, "EMA 100", ema_pink_3, ema_width, display=display.all)
+plot(show_ema200 ? ema200 : na, "EMA 200", ema_pink_4, ema_width, display=display.all)
+// 绘制抄底和卖出信号 - 修改为显示在图表底部
+plotshape(DXDX, title="抄底", text="抄底", location=location.bottom, color=color.red, style=shape.labelup, textcolor=color.white, size=size.small)
+plotshape(DBJGXC, title="卖出", text="卖出", location=location.bottom, color=color.green, style=shape.labelup, textcolor=color.white, size=size.small)

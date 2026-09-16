@@ -1,0 +1,540 @@
+{
+  "status": "deployment_authorized_tv_parity_deferred",
+  "schedule_by_close": true,
+  "timeframes": [
+    "30m",
+    "4H",
+    "1D",
+    "1W"
+  ],
+  "instruments": [
+    {
+      "id": "SPX",
+      "exchange": "SP",
+      "symbol": "SPX",
+      "extended_session": false
+    },
+    {
+      "id": "SPY",
+      "exchange": "AMEX",
+      "symbol": "SPY",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NYSE",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "399411",
+      "exchange": "SZSE",
+      "symbol": "399411",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "SSE",
+        "timezone": "Asia/Shanghai",
+        "id": "szse-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "QQQ",
+      "exchange": "NASDAQ",
+      "symbol": "QQQ",
+      "extended_session": false
+    },
+    {
+      "id": "VIX",
+      "exchange": "CBOE",
+      "symbol": "VIX",
+      "extended_session": false
+    },
+    {
+      "id": "588000",
+      "exchange": "SSE",
+      "symbol": "588000",
+      "extended_session": false
+    },
+    {
+      "id": "IGV",
+      "exchange": "CBOE",
+      "symbol": "IGV",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NYSE",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "SOX",
+      "exchange": "NASDAQ",
+      "symbol": "SOX",
+      "extended_session": false
+    },
+    {
+      "id": "SOXX",
+      "exchange": "NASDAQ",
+      "symbol": "SOXX",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NASDAQ",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "AAPL",
+      "exchange": "NASDAQ",
+      "symbol": "AAPL",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NASDAQ",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "GOOGL",
+      "exchange": "NASDAQ",
+      "symbol": "GOOGL",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NASDAQ",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "MSFT",
+      "exchange": "NASDAQ",
+      "symbol": "MSFT",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NASDAQ",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "NVDA",
+      "exchange": "NASDAQ",
+      "symbol": "NVDA",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NASDAQ",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "META",
+      "exchange": "NASDAQ",
+      "symbol": "META",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NASDAQ",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "TSLA",
+      "exchange": "NASDAQ",
+      "symbol": "TSLA",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NASDAQ",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "AVGO",
+      "exchange": "NASDAQ",
+      "symbol": "AVGO",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NASDAQ",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "INTC",
+      "exchange": "NASDAQ",
+      "symbol": "INTC",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NASDAQ",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "LITE",
+      "exchange": "NASDAQ",
+      "symbol": "LITE",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NASDAQ",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "SPCX",
+      "exchange": "NASDAQ",
+      "symbol": "SPCX",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NASDAQ",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "700",
+      "exchange": "HKEX",
+      "symbol": "700",
+      "extended_session": false,
+      "market_timezone": "Asia/Hong_Kong",
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "HKEX",
+        "timezone": "Asia/Hong_Kong",
+        "id": "hkex-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "0100",
+      "exchange": "HKEX",
+      "symbol": "100",
+      "extended_session": false,
+      "market_timezone": "Asia/Hong_Kong",
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "HKEX",
+        "timezone": "Asia/Hong_Kong",
+        "id": "hkex-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "HSTECH",
+      "exchange": "HSI",
+      "symbol": "HSTECH",
+      "extended_session": false,
+      "market_timezone": "Asia/Hong_Kong",
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "HKEX",
+        "timezone": "Asia/Hong_Kong",
+        "id": "hkex-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "NOW",
+      "exchange": "NYSE",
+      "symbol": "NOW",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NYSE",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "CRM",
+      "exchange": "NYSE",
+      "symbol": "CRM",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NYSE",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "SNOW",
+      "exchange": "NYSE",
+      "symbol": "SNOW",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NYSE",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "ORCL",
+      "exchange": "NYSE",
+      "symbol": "ORCL",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NYSE",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "OKLO",
+      "exchange": "NYSE",
+      "symbol": "OKLO",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NYSE",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "BE",
+      "exchange": "NYSE",
+      "symbol": "BE",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NYSE",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "MCD",
+      "exchange": "NYSE",
+      "symbol": "MCD",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NYSE",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "NKE",
+      "exchange": "NYSE",
+      "symbol": "NKE",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NYSE",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "MU",
+      "exchange": "NASDAQ",
+      "symbol": "MU",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NASDAQ",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "MRVL",
+      "exchange": "NASDAQ",
+      "symbol": "MRVL",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NASDAQ",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "NBIS",
+      "exchange": "NASDAQ",
+      "symbol": "NBIS",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NASDAQ",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "RUT",
+      "exchange": "TVC",
+      "symbol": "RUT",
+      "extended_session": false
+    },
+    {
+      "id": "600900",
+      "exchange": "SSE",
+      "symbol": "600900",
+      "extended_session": false,
+      "market_timezone": "Asia/Shanghai"
+    },
+    {
+      "id": "BABA",
+      "exchange": "NYSE",
+      "symbol": "BABA",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NYSE",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "DXY",
+      "exchange": "TVC",
+      "symbol": "DXY",
+      "extended_session": false
+    },
+    {
+      "id": "JPYUSD",
+      "exchange": "FX_IDC",
+      "symbol": "JPYUSD",
+      "extended_session": false,
+      "note": "Source selected for scanner; screenshot does not expose provider. Chart-feed parity unverified."
+    },
+    {
+      "id": "BRENT",
+      "exchange": "ICEEUR",
+      "symbol": "BRN1!",
+      "extended_session": false,
+      "note": "Candidate continuous future; confirm roll/back-adjustment settings and session metadata",
+      "market_timezone": "Europe/London",
+      "confirmation": {
+        "type": "continuous_interval",
+        "id": "brent-nominal-interval-candidate-v1"
+      }
+    },
+    {
+      "id": "BTCUSD",
+      "exchange": "BITSTAMP",
+      "symbol": "BTCUSD",
+      "extended_session": false,
+      "note": "Candidate only; match the user's actual BTC chart exchange",
+      "notion_ticker": "BTC",
+      "market_timezone": "UTC",
+      "confirmation": {
+        "type": "continuous_interval",
+        "id": "bitstamp-continuous-interval-v1"
+      }
+    },
+    {
+      "id": "MSTR",
+      "exchange": "NASDAQ",
+      "symbol": "MSTR",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NASDAQ",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "XAUUSD",
+      "exchange": "OANDA",
+      "symbol": "XAUUSD",
+      "extended_session": false,
+      "note": "Source selected for scanner; screenshot does not expose provider. Chart-feed parity unverified."
+    },
+    {
+      "id": "US10Y",
+      "exchange": "TVC",
+      "symbol": "US10Y",
+      "extended_session": false,
+      "unit": "percent_yield"
+    },
+    {
+      "id": "US30Y",
+      "exchange": "TVC",
+      "symbol": "US30Y",
+      "extended_session": false,
+      "unit": "percent_yield"
+    },
+    {
+      "id": "US02Y",
+      "exchange": "TVC",
+      "symbol": "US02Y",
+      "extended_session": false,
+      "unit": "percent_yield",
+      "market_timezone": "America/New_York"
+    },
+    {
+      "id": "PLTR",
+      "exchange": "NASDAQ",
+      "symbol": "PLTR",
+      "extended_session": false,
+      "market_timezone": "America/New_York",
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NASDAQ",
+        "timezone": "America/New_York",
+        "id": "nasdaq-rth-calendar-v1"
+      }
+    },
+    {
+      "id": "US05Y",
+      "exchange": "TVC",
+      "symbol": "US05Y",
+      "extended_session": false,
+      "unit": "percent_yield"
+    }
+  ],
+  "curve_maturities": [
+    "US02Y",
+    "US05Y",
+    "US10Y",
+    "US30Y"
+  ],
+  "curve_spreads_bp": [
+    "2s10s",
+    "2s30s",
+    "5s30s",
+    "10s30s"
+  ],
+  "bars": 5000,
+  "backfill_bars": 5000,
+  "warmup": 500,
+  "pine_sha256": "baf6f05dec1ed68d47e8260c01b085e99194b128b7a5296070596d895176cc52",
+  "notion": {
+    "events_data_source": "SET_VIA_PRIVATE_CONFIG",
+    "tickers_data_source": "SET_VIA_PRIVATE_CONFIG",
+    "status_data_source": "SET_VIA_PRIVATE_CONFIG"
+  },
+  "monitor_since": "2026-09-05T04:16:00Z",
+  "backfill_limits": {
+    "30m": 10,
+    "4H": 5,
+    "1D": 5,
+    "1W": 5
+  },
+  "backfill_months": {
+    "30m": 6,
+    "4H": 36,
+    "1D": 36,
+    "1W": 96
+  },
+  "history_policy": "dependency-v1"
+}

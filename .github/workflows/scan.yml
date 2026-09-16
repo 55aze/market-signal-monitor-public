@@ -1,0 +1,38 @@
+name: Market signal scan
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        options: [dry-run, live]
+        default: dry-run
+permissions:
+  contents: read
+concurrency:
+  group: market-signal-notion-writer
+  cancel-in-progress: false
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      TZ: UTC
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      SCAN_MODE: ${{ inputs.mode }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: python -m pip install -e . -r requirements-tv.txt
+      - run: python -m unittest discover -s tests -v
+      - name: Load private runtime configuration
+        env:
+          MONITOR_CONFIG_JSON: ${{ secrets.MONITOR_CONFIG_JSON }}
+        run: |
+          python -c 'import os,json,pathlib; value=json.loads(os.environ["MONITOR_CONFIG_JSON"]); p=pathlib.Path("config/universe.json"); p.write_text(json.dumps(value)); p.chmod(0o600)'
+      - name: Scan without exposing private reports to public logs
+        run: |
+          mkdir -p reports
+          python -m market_signal_monitor.scanner --mode "$SCAN_MODE" > reports/runtime.log 2>&1

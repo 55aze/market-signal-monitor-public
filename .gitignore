@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+.env
+data/
+*.csv
+!tests/fixtures/*.csv
+
+config/universe.json
+reports/

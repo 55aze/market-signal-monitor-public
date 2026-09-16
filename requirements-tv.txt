@@ -1,0 +1,4 @@
+# Reviewed upstream commit; no floating main dependency.
+websocket-client>=1.8,<2
+requests>=2.31,<3
+tvdatafeed @ git+https://github.com/rongardF/tvdatafeed.git@e6f6aaa7de439ac6e454d9b26d2760ded8dc4923

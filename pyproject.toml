@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "market-signal-monitor"
+version = "0.2.0"
+description = "User Pine v5 port and historical parity workbench; not production validated"
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.26,<3", "pandas>=2.2,<3", "requests>=2.31,<3", "pandas_market_calendars>=5,<6"]
+
+[project.scripts]
+market-signals = "market_signal_monitor.cli:main"
+market-scan = "market_signal_monitor.scanner:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
