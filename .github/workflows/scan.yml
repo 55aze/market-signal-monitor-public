@@ -6,6 +6,16 @@ on:
         type: choice
         options: [dry-run, live]
         default: dry-run
+      trigger_source:
+        type: choice
+        options: [manual, external]
+        default: manual
+      scheduled_for:
+        type: string
+        default: ''
+      instruments:
+        type: string
+        default: ''
 permissions:
   contents: read
 concurrency:
@@ -13,12 +23,16 @@ concurrency:
   cancel-in-progress: false
 jobs:
   scan:
+    if: vars.MONITOR_ENABLED != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
       TZ: UTC
       NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
       SCAN_MODE: ${{ inputs.mode }}
+      TRIGGER_SOURCE: ${{ inputs.trigger_source }}
+      SCHEDULED_FOR: ${{ inputs.scheduled_for }}
+      SCAN_INSTRUMENTS: ${{ inputs.instruments }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -27,7 +41,10 @@ jobs:
           cache: pip
       - run: python -m pip install -e . -r requirements-tv.txt
       - run: python -m unittest discover -s tests -v
-        if: github.event_name == 'workflow_dispatch'
+        if: inputs.trigger_source != 'external'
+      - name: Validate external trigger
+        run: |
+          python scripts/validate_trigger.py --event-name workflow_dispatch --mode "$SCAN_MODE" --trigger-source "$TRIGGER_SOURCE" --scheduled-for "$SCHEDULED_FOR" --instruments "$SCAN_INSTRUMENTS"
       - name: Load private runtime configuration
         env:
           MONITOR_CONFIG_JSON: ${{ secrets.MONITOR_CONFIG_JSON }}
