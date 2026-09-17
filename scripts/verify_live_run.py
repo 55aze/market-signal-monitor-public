@@ -21,6 +21,9 @@ def main():
         'created': report.get('created'), 'existing': report.get('existing'),
         'errors': len(report.get('errors', [])),
         'warning_kinds': dict(Counter(w.get('kind', 'other') for w in report.get('warnings', []))),
+        'curve_timeframes': sorted(report.get('curve_latest', {})),
+        'event_curve_statuses': dict(Counter(e.get('curve_status', 'missing') for e in report.get('events', []))),
+        'AMZN_streams': {s['stream']: s['status'] for s in streams if s['stream'].startswith('AMZN:')},
     }))
     if report.get('mode') != 'live':
         return

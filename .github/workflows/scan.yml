@@ -63,6 +63,9 @@ jobs:
           p.write_text(json.dumps(value))
           p.chmod(0o600)
           PY
+      - name: Ensure AMZN status rows
+        if: inputs.mode == 'live'
+        run: python scripts/enroll_amzn.py
       - name: Scan without exposing private reports to public logs
         run: |
           mkdir -p reports
