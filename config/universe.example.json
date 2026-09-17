@@ -99,6 +99,18 @@
       }
     },
     {
+      "id": "AMZN",
+      "exchange": "NASDAQ",
+      "symbol": "AMZN",
+      "extended_session": false,
+      "confirmation": {
+        "type": "exchange_calendar",
+        "calendar": "NASDAQ",
+        "timezone": "America/New_York",
+        "id": "us-equity-rth-calendar-v1"
+      }
+    },
+    {
       "id": "GOOGL",
       "exchange": "NASDAQ",
       "symbol": "GOOGL",
