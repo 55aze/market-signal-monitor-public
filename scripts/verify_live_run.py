@@ -20,6 +20,7 @@ def main():
         'compute_seconds': round(sum(s.get('compute_seconds', 0) for s in streams), 3),
         'created': report.get('created'), 'existing': report.get('existing'),
         'errors': len(report.get('errors', [])),
+        'error_kinds': dict(Counter(e.get('kind', 'unclassified') for e in report.get('errors', []))),
         'warning_kinds': dict(Counter(w.get('kind', 'other') for w in report.get('warnings', []))),
         'curve_timeframes': sorted(report.get('curve_latest', {})),
         'event_curve_statuses': dict(Counter(e.get('curve_status', 'missing') for e in report.get('events', []))),

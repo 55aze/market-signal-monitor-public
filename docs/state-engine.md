@@ -89,3 +89,21 @@ indicator validation. An unsuccessful scanner run does not publish a fresh packe
 the thin reporter must flag stale packets rather than silently use old evidence.
 Pending events remain until acknowledged, including events older than the rolling
 theme window. Publish failures are retried without losing the durable outbox.
+
+
+### Failure isolation and delivery limits
+
+Per-stream failures include a `kind` identifying provider fetch, bar validation,
+confirmed-bar gaps, calculation or Notion status access. Public CI summaries expose
+aggregate categories, never raw private error payloads. Provider gaps preserve
+checkpoints and freeze the affected ticker, while healthy tickers continue. A
+state save failure is isolated to that ticker. Packets expose partial coverage and
+operational errors; shared raw event/checkpoint write failures still block state
+advancement and packet publication.
+
+The ChatGPT task must not acknowledge its current response before delivery. A
+later run may acknowledge exact IDs only from a visible, complete prior final
+report. This is a conservative prompt guard, not a platform delivery callback or
+a guarantee of exactly-once delivery; unavailable history can cause duplicates.
+The task remains paused until a fresh production Packet is verified. The six-hour
+schedule is unchanged.

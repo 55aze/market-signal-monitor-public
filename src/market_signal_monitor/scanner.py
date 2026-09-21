@@ -170,6 +170,7 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
             key = f"{instrument['id']}:{timeframe}"
             ticker = instrument.get("notion_ticker", instrument["id"])
             status_page = previous_through = None
+            phase = "status_read"
             try:
                 if status_store is not None:
                     status_page, previous_through = status_store.load_live(key)
@@ -178,12 +179,15 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
                         report["streams"].append({"stream": key, "status": "skipped_not_due",
                             "latest_processed_bar": previous_through.isoformat()})
                         continue
+                    phase = "status_write"
                     status_store.live_attempt(status_page, pd.Timestamp(datetime.now(timezone.utc)))
+                phase = "provider_fetch"
                 fetch_started = time.monotonic()
                 bars = fetcher(instrument, timeframe, config.get("bars", 5000))
                 fetch_seconds = time.monotonic() - fetch_started
                 if bars.empty:
                     raise InsufficientHistoryWarning("Provider returned no bars")
+                phase = "bar_validation"
                 fetch_now = pd.Timestamp(datetime.now(timezone.utc))
                 close_policy = has_close_policy(instrument)
                 future_last = bars.index[-1] > fetch_now
@@ -200,6 +204,7 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
                 if pd.isna(latest_processed):
                     raise InsufficientHistoryWarning("No confirmed bar is currently available")
 
+                phase = "data_gap"
                 if previous_through is not None:
                     if latest_processed < previous_through:
                         raise RuntimeError("Provider history ends before the durable live checkpoint")
@@ -213,6 +218,7 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
                 if freshness["status"] == "interior_gap":
                     raise RuntimeError(gap_error(freshness))
 
+                phase = "calculation"
                 compute_started = time.monotonic()
                 calculated = calculate(bars)
                 dependency_policy = config.get("history_policy") == POLICY
@@ -286,7 +292,7 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
                         status_store.live_failure(status_page, "Insufficient History", str(exc),
                                                   pd.Timestamp(datetime.now(timezone.utc)))
                     except (ValueError, RuntimeError, OSError) as status_exc:
-                        report["errors"].append({"stream": key, "error": f"Status write failed: {status_exc}"})
+                        report["errors"].append({"stream": key, "kind": "status_write", "error": f"Status write failed: {status_exc}"})
             except (ValueError, RuntimeError, OSError) as exc:
                 if engine_enabled:
                     ticker_batches[ticker][timeframe] = {"error": True}
@@ -297,14 +303,14 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
                     report["streams"].append({"stream": key, "status": "skipped_future_bar",
                                               "warning": str(exc)})
                 else:
-                    report["errors"].append({"stream": key, "error": str(exc)})
+                    report["errors"].append({"stream": key, "kind": phase, "error": str(exc)})
                     report["streams"].append({"stream": key, "status": "failed"})
                     if status_store is not None and status_page:
                         try:
                             status_store.live_failure(status_page, "Fetch Failed", str(exc),
                                                       pd.Timestamp(datetime.now(timezone.utc)))
                         except (ValueError, RuntimeError, OSError) as status_exc:
-                            report["errors"].append({"stream": key, "error": f"Status write failed: {status_exc}"})
+                            report["errors"].append({"stream": key, "kind": "status_write", "error": f"Status write failed: {status_exc}"})
     curves = curve_snapshots(frames)
     report["curve_latest"] = {}
     for timeframe, curve in curves.items():
@@ -316,6 +322,7 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
     for event in report["events"]:
         attach_curve(event, curves)
     delivery_started = time.monotonic()
+    delivery_failed = False
     if status_store is not None:
         for position, item in enumerate(live_streams):
             try:
@@ -326,12 +333,13 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
                                           pd.Timestamp(datetime.now(timezone.utc)),
                                           structure=item["structure"])
             except (ValueError, RuntimeError, OSError) as exc:
-                report["errors"].append({"stream": item["key"], "error": str(exc)})
+                delivery_failed = True
+                report["errors"].append({"stream": item["key"], "kind": "event_or_checkpoint_write", "error": str(exc)})
                 try:
                     status_store.live_failure(item["page"], "Write Failed", str(exc),
                                               pd.Timestamp(datetime.now(timezone.utc)))
                 except (ValueError, RuntimeError, OSError) as status_exc:
-                    report["errors"].append({"stream": item["key"],
+                    report["errors"].append({"stream": item["key"], "kind": "status_write",
                                              "error": f"Status write failed: {status_exc}"})
                 for skipped in live_streams[position + 1:]:
                     reason = f"Delivery skipped after earlier write failure in {item['key']}"
@@ -339,7 +347,7 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
                         status_store.live_failure(skipped["page"], "Write Failed", reason,
                                                   pd.Timestamp(datetime.now(timezone.utc)))
                     except (ValueError, RuntimeError, OSError) as status_exc:
-                        report["errors"].append({"stream": skipped["key"],
+                        report["errors"].append({"stream": skipped["key"], "kind": "status_write",
                                                  "error": f"Status write failed: {status_exc}"})
                 break
     elif client and mode != "dry-run":
@@ -348,13 +356,14 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
                 created = client.append(event)
                 report["created" if created else "existing"] += 1
             except (ValueError, RuntimeError) as exc:
-                report["errors"].append({"event_id": event["event_id"], "error": str(exc)})
+                delivery_failed = True
+                report["errors"].append({"event_id": event["event_id"], "kind": "event_write", "error": str(exc)})
                 break
     if engine_enabled:
         report["ticker_engine"] = {"saved": 0, "uncertain": 0, "pending": 0}
         # Raw delivery must complete first. Ticker checkpoints are independent,
         # so a failed state PATCH is replayable from fetched native history.
-        if not report["errors"]:
+        if not delivery_failed:
             for ticker, state in ticker_states.items():
                 try:
                     result = process_ticker(state, ticker_batches[ticker], report["events"],
@@ -366,9 +375,8 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
                     report["ticker_engine"]["uncertain"] += bool(result["uncertainty"])
                     report["ticker_engine"]["pending"] += len(result["pending"])
                 except (ValueError, RuntimeError, OSError) as exc:
-                    report["errors"].append({"ticker": ticker, "error": str(exc)})
-                    break
-        if not report["errors"] and engine_config.get("report_page"):
+                    report["errors"].append({"ticker": ticker, "kind": "state_write_or_compute", "error": str(exc)})
+        if not delivery_failed and engine_config.get("report_page"):
             try:
                 from .report_packet import packet, publish_packet
                 window = pd.Timedelta(hours=engine_config.get("theme_window_hours", 72))
@@ -380,9 +388,13 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
                               since=(packet_now - window).isoformat(),
                               membership=config.get("theme_membership"),
                               exposure=config.get("exposure_groups"))
+                data["operational_errors"] = [{k: e[k] for k in ("kind", "stream", "ticker") if k in e}
+                                              for e in report["errors"]]
+                data["coverage"] = "partial" if report["errors"] else "complete"
+                data["should_report"] = data["should_report"] or bool(report["errors"])
                 publish_packet(client, engine_config["report_page"], data)
             except (ValueError, RuntimeError, OSError) as exc:
-                report["errors"].append({"component": "report_packet", "error": str(exc)})
+                report["errors"].append({"component": "report_packet", "kind": "packet_publish", "error": str(exc)})
     if report["errors"]:
         report["status"] = "partial_failure"
     elif report["warnings"]:
