@@ -212,13 +212,14 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
                 if pd.isna(latest_processed):
                     raise InsufficientHistoryWarning("No confirmed bar is currently available")
 
-                phase = "data_gap"
+                phase = "checkpoint_validation"
                 if previous_through is not None:
                     if latest_processed < previous_through:
                         raise RuntimeError("Provider history ends before the durable live checkpoint")
                     if previous_through < bars.index[0] or previous_through not in bars.index:
                         raise RuntimeError("Durable live checkpoint is absent from fetched history; gap cannot be ruled out")
 
+                phase = "data_gap"
                 freshness = assess_freshness(
                     bars.index, instrument, timeframe, fetch_now, latest_processed,
                     previous_through=previous_through, enabled=close_policy
@@ -310,6 +311,20 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
                     report["warnings"].append(warning)
                     report["streams"].append({"stream": key, "status": "skipped_future_bar",
                                               "warning": str(exc)})
+                elif phase == "data_gap":
+                    # A proven per-stream hole must freeze that ticker and remain visible,
+                    # but it must not make unrelated healthy streams or the whole run red.
+                    warning = {"stream": key, "kind": "data_gap", "warning": str(exc)}
+                    report["warnings"].append(warning)
+                    report["streams"].append({"stream": key, "status": "skipped_data_gap",
+                                              "warning": str(exc)})
+                    if status_store is not None and status_page:
+                        try:
+                            status_store.live_failure(status_page, "Fetch Failed", str(exc),
+                                                      pd.Timestamp(datetime.now(timezone.utc)))
+                        except (ValueError, RuntimeError, OSError) as status_exc:
+                            report["errors"].append({"stream": key, "kind": "status_write",
+                                                     "error": f"Status write failed: {status_exc}"})
                 else:
                     report["errors"].append({"stream": key, "kind": phase, "error": str(exc)})
                     report["streams"].append({"stream": key, "status": "failed"})
@@ -396,10 +411,12 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
                               since=(packet_now - window).isoformat(),
                               membership=config.get("theme_membership"),
                               exposure=config.get("exposure_groups"))
+                issues = report["errors"] + [w for w in report["warnings"]
+                                             if w.get("kind") == "data_gap"]
                 data["operational_errors"] = [{k: e[k] for k in ("kind", "stream", "ticker") if k in e}
-                                              for e in report["errors"]]
-                data["coverage"] = "partial" if report["errors"] else "complete"
-                data["should_report"] = data["should_report"] or bool(report["errors"])
+                                              for e in issues]
+                data["coverage"] = "partial" if issues or data["data_gaps"] else "complete"
+                data["should_report"] = data["should_report"] or bool(issues)
                 publish_packet(client, engine_config["report_page"], data)
             except (ValueError, RuntimeError, OSError) as exc:
                 report["errors"].append({"component": "report_packet", "kind": "packet_publish", "error": str(exc)})

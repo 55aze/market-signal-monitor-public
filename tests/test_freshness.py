@@ -150,7 +150,10 @@ class ScannerFreshnessIntegrationTests(unittest.TestCase):
                 config, mode="live", since=bars.index[0].isoformat(),
                 fetcher=lambda *args: bars, client=client, status_store=store
             )
-        self.assertEqual(report["status"], "partial_failure")
+        self.assertEqual(report["status"], "completed_with_warnings")
+        self.assertEqual(report["errors"], [])
+        self.assertEqual(report["warnings"][0]["kind"], "data_gap")
+        self.assertEqual(report["streams"][0]["status"], "skipped_data_gap")
         self.assertEqual(store.successes, [])
         self.assertEqual(store.failures[0][1], "Fetch Failed")
         self.assertIn("Expected confirmed bar gap", store.failures[0][2])
