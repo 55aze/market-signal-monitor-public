@@ -48,6 +48,8 @@ jobs:
       - name: Load private runtime configuration
         env:
           MONITOR_CONFIG_JSON: ${{ secrets.MONITOR_CONFIG_JSON }}
+          STATE_ENGINE_CONFIG_JSON: ${{ secrets.STATE_ENGINE_CONFIG_JSON }}
+          TICKER_ENGINE_ENABLED: ${{ vars.TICKER_ENGINE_ENABLED }}
         run: |
           python - <<'PY'
           import os, json, pathlib
@@ -59,10 +61,20 @@ jobs:
               if item["id"] in {"AMZN", "NOW"} and item["id"] not in existing:
                   value["instruments"].append(item)
                   existing.add(item["id"])
+          engine = os.environ.get("STATE_ENGINE_CONFIG_JSON")
+          if engine:
+              overlay = json.loads(engine)
+              for key in ("ticker_engine", "theme_membership", "exposure_groups"):
+                  if key in overlay:
+                      value[key] = overlay[key]
+              value["ticker_engine"]["enabled"] = os.environ.get("TICKER_ENGINE_ENABLED") == "true"
           p = pathlib.Path("config/universe.json")
           p.write_text(json.dumps(value))
           p.chmod(0o600)
           PY
+      - name: Verify ticker engine access
+        if: inputs.trigger_source == 'manual'
+        run: python scripts/verify_engine_access.py
       - name: Ensure AMZN status rows
         if: inputs.mode == 'live'
         run: python scripts/enroll_amzn.py

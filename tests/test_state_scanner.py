@@ -8,7 +8,7 @@ from market_signal_monitor.state_engine import seed
 class ScannerStateTests(unittest.TestCase):
     def config(self):
         return {'pine_sha256':'abc','warmup':1,'timeframes':['4H'],
-                'instruments':[INSTRUMENT], 'ticker_engine':{'enabled':True}}
+                'instruments':[INSTRUMENT], 'theme_membership':{}, 'ticker_engine':{'enabled':True}}
 
     def test_state_checkpoint_is_separate_and_failure_is_reported(self):
         bars, calculated = fixture()

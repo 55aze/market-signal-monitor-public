@@ -153,6 +153,14 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
         if ticker_store is None:
             ticker_store = TickerStore(client, engine_config["state_data_source"])
         ticker_store.preflight()
+        if "theme_membership" not in config:
+            from .state_store import plain
+            config = dict(config)
+            config["theme_membership"] = {
+                plain(row["properties"]["Ticker"]):
+                    [v["name"] for v in row["properties"].get("Theme", {}).get("multi_select", [])]
+                for row in client.query(config["notion"]["tickers_data_source"],
+                                        {"property": "Ticker", "title": {"is_not_empty": True}})}
         if engine_config.get("report_page"):
             from .report_packet import delivery_receipt
             receipts = delivery_receipt(client, engine_config["report_page"])
