@@ -9,3 +9,9 @@ Install: `python -m pip install -e . -r requirements-tv.txt`
 Test: `python -m unittest discover -s tests -v`
 
 The example configuration is a template, not production configuration. Persist the original monitor_since and Notion checkpoints. Higher-timeframe close-aware scheduling and duration metrics are included.
+
+Optional deterministic ticker lifecycle and the thin six-hour ChatGPT reporter are
+documented in [docs/state-engine.md](docs/state-engine.md). This feature is disabled
+until private schema/configuration is provisioned and the old LLM state writer is
+retired. The reporter prompt is in
+[docs/trading-signal-watch-prompt.md](docs/trading-signal-watch-prompt.md).
