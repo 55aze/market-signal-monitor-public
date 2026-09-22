@@ -62,13 +62,24 @@ def publish_packet(client, page_id, data):
 
 def delivery_receipt(client, page_id):
     import json
+    import re
     from .state_store import plain
     page = client.request('GET', f'pages/{page_id}')
     properties = page['properties']
     if properties.get('Packet', {}).get('type') != 'rich_text' or properties.get('Delivered IDs', {}).get('type') != 'rich_text':
         raise ValueError('Report page requires Packet and Delivered IDs rich_text properties')
     text = plain(properties['Delivered IDs'])
-    result = json.loads(text) if text else []
+    if not text:
+        return []
+    try:
+        result = json.loads(text)
+    except json.JSONDecodeError:
+        # Older reporter prompts wrote acknowledgement IDs as comma-separated
+        # text. Accept only the exact deterministic event-id shape so arbitrary
+        # malformed content cannot acknowledge pending events.
+        result = [value.strip() for value in text.split(',')]
+        if not result or any(not re.fullmatch(r'[0-9a-f]{24}', value) for value in result):
+            raise ValueError('Delivered IDs must be a JSON string array') from None
     if not isinstance(result, list) or any(not isinstance(v, str) for v in result):
         raise ValueError('Delivered IDs must be a JSON string array')
-    return result
+    return list(dict.fromkeys(result))

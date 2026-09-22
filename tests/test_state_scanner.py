@@ -103,3 +103,24 @@ class ScannerStateTests(unittest.TestCase):
         self.assertEqual([c.args[0] for c in store.save.call_args_list], ['BAD', 'QQQ'])
         self.assertEqual(report['ticker_engine']['saved'], 1)
         self.assertEqual(report['errors'][0]['kind'], 'state_write_or_compute')
+
+    def test_invalid_delivery_receipt_does_not_stop_scan_or_state_save(self):
+        bars, calculated = fixture()
+        calculated['DXDX'] = calculated['DBJGXC'] = 0
+        config = self.config()
+        config['ticker_engine']['report_page'] = 'report-page'
+        store, client = Mock(), Mock()
+        store.rows = {'QQQ': {}}
+        store.load.return_value = seed({'Ticker':'QQQ'})
+        with patch('market_signal_monitor.scanner.calculate', return_value=calculated), \
+             patch('market_signal_monitor.scanner.has_close_policy', return_value=False), \
+             patch('market_signal_monitor.report_packet.delivery_receipt',
+                   side_effect=ValueError('bad receipt')), \
+             patch('market_signal_monitor.report_packet.publish_packet'):
+            report = run(config, mode='live', since=bars.index[0].isoformat(),
+                         fetcher=lambda *args:bars, client=client,
+                         status_store=LiveStore(), ticker_store=store)
+        self.assertEqual(report['status'], 'completed_with_warnings')
+        self.assertEqual(report['errors'], [])
+        self.assertEqual(report['warnings'][0]['kind'], 'receipt_invalid')
+        store.save.assert_called_once()
