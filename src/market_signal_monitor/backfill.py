@@ -39,6 +39,9 @@ class StatusStore:
         schema.update({name: 'date' for name in ('Last Attempt', 'Last Success',
             'Backfill Window Start', 'Backfill Window End', 'Coverage Start', 'Coverage End',
             'Continuous Through')})
+        self.freshness_fields = {k for k, kind in {
+            'Expected Through':'date', 'Freshness Status':'select', 'Missing Count':'number'}.items()
+            if actual.get(k, {}).get('type') == kind}
         if any(actual.get(k, {}).get('type') != v for k, v in schema.items()):
             raise ValueError('Scan Status schema mismatch or integration access missing')
 
@@ -63,6 +66,15 @@ class StatusStore:
         row = self._row(stream)
         value = row['properties']['Continuous Through'].get('date')
         checkpoint = pd.Timestamp(value['start']) if value else None
+        # Populate additive display columns even when a higher timeframe is not due.
+        if ('Freshness Status' in getattr(self, 'freshness_fields', set())
+                and not row['properties'].get('Freshness Status', {}).get('select')):
+            encoded = ''.join(x.get('plain_text', x.get('text', {}).get('content', ''))
+                              for x in row['properties'].get('Current Structure', {}).get('rich_text', []))
+            if encoded:
+                freshness = json.loads(encoded).get('freshness')
+                if freshness:
+                    self.live_freshness(row['id'], freshness)
         return row['id'], checkpoint
 
     @staticmethod
@@ -73,7 +85,8 @@ class StatusStore:
         return {}
 
     def live_attempt(self, page, at):
-        props = {'Last Attempt': {'date': {'start': pd.Timestamp(at).isoformat()}},
+        props = {**self.freshness_properties({'status':'unverifiable'}),
+                 'Last Attempt': {'date': {'start': pd.Timestamp(at).isoformat()}},
                  **self._run_url_props()}
         self.client.request('PATCH', f'pages/{page}', {'properties': props})
 
@@ -87,7 +100,24 @@ class StatusStore:
         if structure is not None:
             raw = json.dumps(structure, ensure_ascii=False, allow_nan=False, separators=(',', ':'))
             props['Current Structure'] = {'rich_text': rich(raw)}
+        if structure and structure.get('freshness'):
+            props.update(self.freshness_properties(structure['freshness']))
         self.client.request('PATCH', f'pages/{page}', {'properties': props})
+
+    def freshness_properties(self, freshness):
+        status = {'current':'Current', 'stale_tail':'Stale', 'interior_gap':'Gap'}.get(
+            freshness.get('status'), 'Unverifiable')
+        expected = freshness.get('expected_latest')
+        values = {'Expected Through': {'date': {'start':expected} if expected else None},
+                  'Freshness Status': {'select': {'name':status}},
+                  'Missing Count': {'number':freshness.get('missing_count')
+                                    if status != 'Unverifiable' else None}}
+        return {k:v for k,v in values.items() if k in getattr(self, 'freshness_fields', set())}
+
+    def live_freshness(self, page, freshness):
+        props = self.freshness_properties(freshness)
+        if props:
+            self.client.request('PATCH', f'pages/{page}', {'properties':props})
 
     def live_failure(self, page, status, error, at):
         if status not in ('Fetch Failed', 'Write Failed', 'Insufficient History'):

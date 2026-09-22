@@ -124,3 +124,30 @@ class ScannerStateTests(unittest.TestCase):
         self.assertEqual(report['errors'], [])
         self.assertEqual(report['warnings'][0]['kind'], 'receipt_invalid')
         store.save.assert_called_once()
+
+    def test_receipt_write_failure_keeps_pending_but_market_state_advances(self):
+        from market_signal_monitor.report_packet import DeliveryReceipt
+        bars, calculated = fixture()
+        calculated['DXDX'] = calculated['DBJGXC'] = 0
+        config = self.config()
+        config['ticker_engine']['report_page'] = 'report-page'
+        state = seed({'Ticker':'QQQ','Stage':'Developing','Direction':'Bottom','Origin TF':'4H',
+                      'date:Origin Event At:start':bars.index[0].isoformat(),
+                      'date:Last Origin Bar:start':bars.index[1].isoformat()})
+        state['pending'] = [{'id':'pending','source_event_id':'raw','ticker':'QQQ',
+                             'kind':'HIGHER_TF_SIGNAL','at':bars.index[0].isoformat()}]
+        store, client = Mock(), Mock()
+        store.load.return_value = state
+        store.rows = {'QQQ':{}}
+        client.mark_reported.side_effect = RuntimeError('ambiguous receipt write')
+        receipt = DeliveryReceipt(['pending'], 'packet', bars.index[-1].isoformat())
+        with patch('market_signal_monitor.scanner.calculate', return_value=calculated), \
+             patch('market_signal_monitor.scanner.has_close_policy', return_value=False), \
+             patch('market_signal_monitor.report_packet.delivery_receipt', return_value=receipt), \
+             patch('market_signal_monitor.report_packet.publish_packet'):
+            report = run(config, mode='live', since=bars.index[0].isoformat(),
+                         fetcher=lambda *a:bars, client=client, status_store=LiveStore(), ticker_store=store)
+        saved = store.save.call_args.args[1]
+        self.assertEqual(saved['stage'], 'Qualified')
+        self.assertIn('pending', [e['id'] for e in saved['pending']])
+        self.assertEqual(report['errors'][0]['kind'], 'receipt_write')

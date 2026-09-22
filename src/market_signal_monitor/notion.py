@@ -126,6 +126,25 @@ class Notion:
             self.tickers[name] = row["id"]
         return self.tickers[name]
 
+    def mark_reported(self, event_id, delivered_at, packet_id):
+        rows = list(self.query(self.events_source,
+                    {"property":"Event ID", "rich_text":{"equals":event_id}}))
+        if len(rows) != 1:
+            raise ValueError('Delivery source event is missing or ambiguous')
+        row = rows[0]
+        props = row['properties']
+        status = (props.get('Report Status', {}).get('select') or {}).get('name')
+        if status == 'Reported' and props.get('Reported At', {}).get('date'):
+            # Preserve the first delivery when multiple transitions share a source.
+            if not props.get('Surfaced', {}).get('checkbox'):
+                self.request('PATCH', f"pages/{row['id']}",
+                             {'properties':{'Surfaced':{'checkbox':True}}})
+            return
+        self.request('PATCH', f"pages/{row['id']}", {'properties':{
+            'Report Status':{'select':{'name':'Reported'}}, 'Surfaced':{'checkbox':True},
+            'Reported At':{'date':{'start':delivered_at}},
+            'Report ID':{'rich_text':rich(packet_id)}}})
+
     def append(self, event):
         rows = list(self.query(self.events_source,
                     {"property": "Event ID", "rich_text": {"equals": event["event_id"]}}))

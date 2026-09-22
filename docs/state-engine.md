@@ -75,8 +75,8 @@ out of this public repo. Configure in MONITOR_CONFIG_JSON:
 3. Enable Python configuration and verify state + packet write/readback.
 4. Point ChatGPT at the private report row and use the adjacent thin prompt. Keep
    its six-hour cadence. It reads Packet only, not the full Engine State payload.
-5. After successful delivery, the reporter writes the packet's acknowledgement_ids
-   JSON array to Delivered IDs ONLY. Scanner consumes that receipt on the next
+5. After successful delivery, the reporter writes the packet's delivery
+   receipt to Delivered IDs ONLY. Scanner consumes that receipt on the next
    run. It never overwrites Delivered IDs. Reporter never writes Engine State.
 
 Delivery is at-least-once: a crash between report delivery and receipt can cause a
@@ -105,5 +105,33 @@ The ChatGPT task must not acknowledge its current response before delivery. A
 later run may acknowledge exact IDs only from a visible, complete prior final
 report. This is a conservative prompt guard, not a platform delivery callback or
 a guarantee of exactly-once delivery; unavailable history can cause duplicates.
-The task remains paused until a fresh production Packet is verified. The six-hour
-schedule is unchanged.
+A fresh production Packet must be verified before adopting the updated prompt.
+The six-hour schedule is unchanged.
+
+## Coverage and delivery fields
+
+Scan Status exposes Expected Through, Freshness Status and Missing Count alongside
+Continuous Through (durably processed bar-open time) and Last Attempt. These three
+new columns are optional for backward-compatible rollout. Unverifiable has no
+expected time or missing count; Success means the scan/write completed, not that
+coverage is verified. Current Structure retains detailed freshness evidence.
+
+Packet as_of is generation time. packet_id identifies its sorted item-ID set,
+not a snapshot hash; coverage and current structures can change with the same set.
+coverage_snapshot records per-stream checked_at and expected/actual bar opens.
+Coverage checks apply after the checkpoint, not to all historical provider bars.
+New transitions retain bar_at, confirmed_at and detected_at; operational items
+have no bar/confirmation clock. Existing items retain their original IDs and
+missing historical metadata is not invented.
+
+Delivered IDs accepts the legacy JSON array/strict CSV or the new receipt object:
+{packet_id, item_ids, delivered_at}. The new prompt requires the actual visible
+prior report's timestamp. Python persists delivered_at separately from
+receipt_confirmed_at in Engine State's delivered ledger. Legacy receipts have
+unknown delivery time and do not manufacture Raw Event reporting timestamps.
+Raw events with a source_event_id are marked Reported/Surfaced together before
+the corresponding pending item is acknowledged. Failed writes leave it pending
+and do not stop market-state processing. Replay preserves the first delivery.
+Lifecycle changes are separate report items, not delivery of the original raw
+signal. The only evidence of receipt is the reporter's verified prior final
+message; this is still not a platform transaction or exactly-once guarantee.

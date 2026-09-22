@@ -178,6 +178,7 @@ def advance(state, bars, signals, now, rules=None):
         if stamp(b['confirmed_at']) <= cutoff:
             items.append((stamp(b['confirmed_at']), 1, b['timestamp'] + b['timeframe'], b))
     for _, kind, _, item in sorted(items, key=lambda x: x[:3]):
+        before_pending, before_history = len(s['pending']), len(s['history'])
         if kind == 0:
             _signal(s, item, p)
             if s['uncertainty']:
@@ -188,11 +189,26 @@ def advance(state, bars, signals, now, rules=None):
             except ValueError as exc:
                 s['uncertainty'] = [str(exc)]
                 return s
+        # Preserve IDs and market chronology; discovery is a separate clock.
+        for event in s['pending'][before_pending:] + s['history'][before_history:]:
+            event.setdefault('bar_at', item['timestamp'])
+            event.setdefault('confirmed_at', event['at'])
+            event.setdefault('detected_at', item.get('first_seen') or now)
+            if kind == 0:
+                event.setdefault('source_event_id', item['event_id'])
     return s
 
 
-def acknowledge(state, event_ids):
+def acknowledge(state, event_ids, *, confirmed_at=None):
     s = deepcopy(state)
     acknowledged = set(event_ids)
+    if confirmed_at:
+        ledger = s.setdefault('delivered', [])
+        known = {e['id'] for e in ledger}
+        for event in s['pending']:
+            if event['id'] in acknowledged and event['id'] not in known:
+                ledger.append(dict(event, receipt_confirmed_at=confirmed_at,
+                    delivered_at=getattr(event_ids, 'delivered_at', None),
+                    packet_id=getattr(event_ids, 'packet_id', None)))
     s['pending'] = [e for e in s['pending'] if e['id'] not in acknowledged]
     return s
