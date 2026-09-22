@@ -24,6 +24,9 @@ def observation_batch(bars, calculated, instrument, timeframe, confirmations, no
 def _process_ticker(state, batches, events, now, rules=None):
     s = deepcopy(state)
     origin = s['origin_tf']
+    for tf, batch in batches.items():
+        if batch.get('coverage'):
+            s.setdefault('coverage', {})[tf] = deepcopy(batch['coverage'])
     if 'Late dominant signal requires explicit chronological replay' in s['uncertainty']:
         return s
     # A failure in any stream can hide a dominant opposite signal. Freeze ticker
@@ -48,6 +51,11 @@ def _process_ticker(state, batches, events, now, rules=None):
         if rows and pd.Timestamp(s['last_bar']) not in {pd.Timestamp(b['timestamp']) for b in rows}:
             s['uncertainty'] = ['Origin checkpoint absent from fetched bars; replay gap unknown']
             return s
+    # A recovered fetch is independent of whether the origin timeframe is due.
+    s['uncertainty'] = [reason for reason in s['uncertainty']
+                        if not (reason.startswith('Unavailable stream(s): ') and
+                            all(batches.get(tf, {}).get('bars') and not batches[tf].get('error')
+                                for tf in reason.split(': ', 1)[1].split(', ')))]
     if s['uncertainty'] and not batches.get(origin, {}).get('bars'):
         return s
     s['uncertainty'] = []
@@ -66,7 +74,7 @@ def process_ticker(state, batches, events, now, rules=None):
     if result['uncertainty'] != state['uncertainty']:
         event = dict(id=identity(state['ticker'], now, result['uncertainty']),
                      kind='DATA_GAP' if result['uncertainty'] else 'DATA_RECOVERED',
-                     ticker=state['ticker'], at=now,
+                     ticker=state['ticker'], at=now, detected_at=now, bar_at=None, confirmed_at=None,
                      reason='; '.join(result['uncertainty']) or 'Data coverage restored')
         result['pending'].append(event)
     return result

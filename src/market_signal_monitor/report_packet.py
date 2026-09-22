@@ -1,6 +1,6 @@
 """Compact evidence, not a second state machine or an investment recommendation."""
 from collections import defaultdict
-from .state_engine import stamp, TF
+from .state_engine import stamp, TF, identity
 
 
 def theme_evidence(states, membership, exposure, since, now):
@@ -37,7 +37,10 @@ def packet(states, *, now, since, membership=None, exposure=None):
                     key=lambda e: (e['kind'] != 'OPPORTUNITY', e['at'], e['id']))
     affected = {e['ticker'] for e in events}
     gaps = [{'ticker':s['ticker'], 'reasons':s['uncertainty']} for s in states if s['uncertainty']]
-    return dict(version=1, as_of=now, should_report=bool(events),
+    ids = [e['id'] for e in events]
+    return dict(version=1, as_of=now, packet_id=identity('packet', sorted(ids)),
+        coverage_snapshot={s['ticker']:s.get('coverage', {}) for s in states if s['ticker'] in affected},
+        should_report=bool(events),
         new_moves=[e for e in events if e['kind'] == 'HIGHER_TF_SIGNAL' or e.get('to') == 'Signal'],
         state_changes=[e for e in events if e['kind'] != 'HIGHER_TF_SIGNAL' and e.get('to') != 'Signal'],
         affected_states=[{k:s[k] for k in ('ticker','stage','direction','origin_tf','streak',
@@ -60,6 +63,12 @@ def publish_packet(client, page_id, data):
     client.request('PATCH', f'pages/{page_id}', {'properties': {'Packet': {'rich_text':rich(payload)}}})
 
 
+class DeliveryReceipt(list):
+    def __init__(self, ids, packet_id=None, delivered_at=None):
+        super().__init__(ids)
+        self.packet_id, self.delivered_at = packet_id, delivered_at
+
+
 def delivery_receipt(client, page_id):
     import json
     import re
@@ -80,6 +89,18 @@ def delivery_receipt(client, page_id):
         result = [value.strip() for value in text.split(',')]
         if not result or any(not re.fullmatch(r'[0-9a-f]{24}', value) for value in result):
             raise ValueError('Delivered IDs must be a JSON string array') from None
+    packet_id = delivered_at = None
+    if isinstance(result, dict):
+        packet_id, delivered_at = result.get('packet_id'), result.get('delivered_at')
+        result = result.get('item_ids')
+        if not isinstance(packet_id, str) or not isinstance(delivered_at, str):
+            raise ValueError('Receipt requires packet_id and delivered_at')
+        from datetime import datetime, timezone
+        if stamp(delivered_at) > datetime.now(timezone.utc):
+            raise ValueError('Receipt delivery time is in the future')
+        if (not isinstance(result, list) or any(not isinstance(v, str) for v in result)
+                or packet_id != identity('packet', sorted(set(result)))):
+            raise ValueError('Receipt packet_id does not match item_ids')
     if not isinstance(result, list) or any(not isinstance(v, str) for v in result):
         raise ValueError('Delivered IDs must be a JSON string array')
-    return list(dict.fromkeys(result))
+    return DeliveryReceipt(list(dict.fromkeys(result)), packet_id, delivered_at)

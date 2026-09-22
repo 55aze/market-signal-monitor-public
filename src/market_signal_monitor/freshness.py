@@ -246,7 +246,7 @@ def assess_freshness(bars_index, instrument, timeframe, now, latest_processed,
                      previous_through=None, enabled=True):
     now, actual = _utc(now), _utc(latest_processed)
     checkpoint = _utc(previous_through) if previous_through is not None else None
-    base = {"status": "unverifiable", "verification": "disabled" if not enabled else None,
+    base = {"checked_at": now.isoformat(), "status": "unverifiable", "verification": "disabled" if not enabled else None,
             "expected_latest": None, "actual_latest": actual.isoformat(),
             "checkpoint": checkpoint.isoformat() if checkpoint is not None else None,
             "missing_count": 0, "missing_bar_opens": [], "missing_truncated": False,

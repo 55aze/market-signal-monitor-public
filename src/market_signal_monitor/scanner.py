@@ -173,7 +173,7 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
                                          "kind": "receipt_invalid", "warning": str(exc)})
         for instrument in instruments:
             ticker = instrument.get("notion_ticker", instrument["id"])
-            ticker_states[ticker] = acknowledge(ticker_store.load(ticker, now.isoformat()), receipts)
+            ticker_states[ticker] = ticker_store.load(ticker, now.isoformat())
             ticker_batches[ticker] = {}
     report = {"run_at": now.isoformat(), "mode": mode, "validation": "Unvalidated",
               "status": "running", "streams": [], "events": [], "created": 0, "existing": 0,
@@ -184,7 +184,7 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
         for timeframe in instrument.get("timeframes", config["timeframes"]):
             key = f"{instrument['id']}:{timeframe}"
             ticker = instrument.get("notion_ticker", instrument["id"])
-            status_page = previous_through = None
+            status_page = previous_through = freshness = None
             phase = "status_read"
             try:
                 if status_store is not None:
@@ -232,6 +232,8 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
                     previous_through=previous_through, enabled=close_policy
                 )
                 if freshness["status"] == "interior_gap":
+                    if status_store is not None and status_page and hasattr(status_store, 'live_freshness'):
+                        status_store.live_freshness(status_page, freshness)
                     raise RuntimeError(gap_error(freshness))
 
                 phase = "calculation"
@@ -259,7 +261,7 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
                     ticker_batches[ticker][timeframe] = {
                         "bars": observation_batch(bars, calculated, instrument, timeframe,
                                                   confirmations, fetch_now),
-                        "error": freshness["status"] == "stale_tail"}
+                        "error": freshness["status"] == "stale_tail", "coverage": freshness}
                 frames[instrument["id"], timeframe] = bars
                 report["events"].extend(events)
                 stream = {"stream": key, "status": "fetched_and_computed", "bars": len(bars),
@@ -298,7 +300,9 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
                                          "structure": current_structure})
             except InsufficientHistoryWarning as exc:
                 if engine_enabled:
-                    ticker_batches[ticker][timeframe] = {"error": True}
+                    ticker_batches[ticker][timeframe] = {"error": True, "coverage": freshness or {
+                        "status":"unverifiable", "checked_at":datetime.now(timezone.utc).isoformat(),
+                        "expected_latest":None, "actual_latest":None}}
                 warning = {"stream": key, "warning": str(exc), "kind": "insufficient_history"}
                 report["warnings"].append(warning)
                 report["streams"].append({"stream": key, "status": "skipped_insufficient_history",
@@ -311,7 +315,9 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
                         report["errors"].append({"stream": key, "kind": "status_write", "error": f"Status write failed: {status_exc}"})
             except (ValueError, RuntimeError, OSError) as exc:
                 if engine_enabled:
-                    ticker_batches[ticker][timeframe] = {"error": True}
+                    ticker_batches[ticker][timeframe] = {"error": True, "coverage": freshness or {
+                        "status":"unverifiable", "checked_at":datetime.now(timezone.utc).isoformat(),
+                        "expected_latest":None, "actual_latest":None}}
                 if str(exc) == "Provider returned a future bar timestamp":
                     warning = {"stream": key, "kind": "future_tail_skipped",
                                "warning": str(exc)}
@@ -396,6 +402,22 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
         if not delivery_failed:
             for ticker, state in ticker_states.items():
                 try:
+                    # A failed receipt write must not block market-state progression.
+                    try:
+                        delivered_at = getattr(receipts, 'delivered_at', None)
+                        if delivered_at:
+                            from .state_engine import stamp
+                            if any(item['id'] in receipts and stamp(delivered_at) < stamp(item['at'])
+                                   for item in state['pending']):
+                                raise ValueError('Receipt predates a pending item')
+                        for item in state['pending']:
+                            if (item['id'] in receipts and item.get('source_event_id')
+                                    and getattr(receipts, 'delivered_at', None)):
+                                client.mark_reported(item['source_event_id'], receipts.delivered_at,
+                                                     receipts.packet_id)
+                        state = acknowledge(state, receipts, confirmed_at=now.isoformat())
+                    except (ValueError, RuntimeError, OSError) as exc:
+                        report['errors'].append({'ticker':ticker, 'kind':'receipt_write', 'error':str(exc)})
                     result = process_ticker(state, ticker_batches[ticker], report["events"],
                                             pd.Timestamp(datetime.now(timezone.utc)).isoformat(),
                                             engine_config.get("policy"))
@@ -422,7 +444,9 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
                                              if w.get("kind") == "data_gap"]
                 data["operational_errors"] = [{k: e[k] for k in ("kind", "stream", "ticker") if k in e}
                                               for e in issues]
-                data["coverage"] = "partial" if issues or data["data_gaps"] else "complete"
+                unverified = any(stream.get("freshness", {}).get("status") == "unverifiable"
+                                 for stream in report["streams"])
+                data["coverage"] = "partial" if issues or data["data_gaps"] or unverified else "complete"
                 data["should_report"] = data["should_report"] or bool(issues)
                 publish_packet(client, engine_config["report_page"], data)
             except (ValueError, RuntimeError, OSError) as exc:
