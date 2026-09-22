@@ -192,6 +192,41 @@ def _serialize(values, limit=12):
     return [x.isoformat() for x in values[:limit]], len(values) > limit
 
 
+def _optional_session_open_prefix(instrument, timeframe, start, now, expected, returned):
+    """Find omitted bars only before the first returned bar of a session.
+
+    Some TVC yield sessions have aligned bars from the published session open,
+    while an illiquid reopen can begin later. This never forgives a hole after
+    the first returned bar in that session.
+    """
+    policy = policy_for(instrument)
+    if (not policy or policy.get("type") != "overnight_calendar"
+            or timeframe not in policy.get("optional_session_open_prefix", ())):
+        return set()
+    start, now = _utc(start), _utc(now)
+    timezone = policy["timezone"]
+    sessions = _overnight_sessions(
+        policy,
+        (start.tz_convert(timezone) - pd.Timedelta(days=8)).date(),
+        (now.tz_convert(timezone) + pd.Timedelta(days=8)).date(),
+        timeframe)
+    duration = _duration(timeframe)
+    expected, returned = set(expected), set(returned)
+    optional = set()
+    for _, opening, closing in sessions:
+        cursor, session_expected = _utc(opening), []
+        closing = _utc(closing)
+        while cursor < closing:
+            if min(cursor + duration, closing) <= now:
+                session_expected.append(cursor)
+            cursor += duration
+        observed = sorted(set(session_expected) & returned)
+        if observed:
+            optional.update(stamp for stamp in session_expected
+                            if stamp < observed[0] and stamp in expected)
+    return optional
+
+
 def scan_due(instrument, timeframe, checkpoint, now):
     """Gate higher timeframes by durable progress, never by a successful fetch alone.
 
@@ -214,7 +249,8 @@ def assess_freshness(bars_index, instrument, timeframe, now, latest_processed,
     base = {"status": "unverifiable", "verification": "disabled" if not enabled else None,
             "expected_latest": None, "actual_latest": actual.isoformat(),
             "checkpoint": checkpoint.isoformat() if checkpoint is not None else None,
-            "missing_count": 0, "missing_bar_opens": [], "missing_truncated": False}
+            "missing_count": 0, "missing_bar_opens": [], "missing_truncated": False,
+            "session_open_variance_count": 0, "session_open_variance_bar_opens": []}
     if not enabled:
         return base
     start = checkpoint if checkpoint is not None else actual
@@ -230,6 +266,13 @@ def assess_freshness(bars_index, instrument, timeframe, now, latest_processed,
         tail = missing
     else:
         missing = [stamp for stamp in expected if stamp not in returned]
+        optional = _optional_session_open_prefix(
+            instrument, timeframe, checkpoint, now, expected, returned)
+        if optional:
+            optional_serialized, _ = _serialize(sorted(optional))
+            base["session_open_variance_count"] = len(optional)
+            base["session_open_variance_bar_opens"] = optional_serialized
+            missing = [stamp for stamp in missing if stamp not in optional]
         interior = [stamp for stamp in missing if stamp <= actual]
         tail = [stamp for stamp in missing if stamp > actual]
     if interior:

@@ -17,10 +17,13 @@ def policy_for(instrument):
     if instrument.get("id") in _TREASURY_YIELD_IDS:
         # Real TVC bars use different anchors by timeframe. The September audit
         # showed 30m at 20:00->17:30 New York and 4H/1D/1W at 19:00 anchors.
+        # TVC may omit an illiquid prefix at a session reopen while retaining
+        # later aligned bars; freshness handles that prefix separately.
         return {"type": "overnight_calendar", "calendar": "NYSE",
                 "timezone": "America/New_York",
                 "session_open_by_tf": {"30m": "20:00", "4H": "19:00", "1D": "19:00", "1W": "19:00"},
                 "session_close_by_tf": {"30m": "17:30", "4H": "19:00", "1D": "19:00", "1W": "19:00"},
+                "optional_session_open_prefix": ["30m", "4H"],
                 "id": "tvc-us-yield-session-v2"}
     if instrument.get("id") == "JPYUSD":
         return {"type": "fixed_week", "timezone": "UTC",

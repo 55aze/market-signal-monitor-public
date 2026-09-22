@@ -13,6 +13,7 @@ BTC = {
     "confirmation": {"type": "continuous_interval", "id": "btc-v1",
                      "gap_schedule": "continuous_24_7"},
 }
+US02Y = {"id": "US02Y", "exchange": "TVC", "symbol": "US02Y"}
 
 
 class FreshnessTests(unittest.TestCase):
@@ -86,6 +87,45 @@ class FreshnessTests(unittest.TestCase):
         )
         self.assertEqual(result["status"], "unverifiable")
         self.assertEqual(result["verification"], "unsupported_continuous")
+
+    def test_treasury_omitted_session_open_prefix_is_not_a_data_gap(self):
+        index = pd.to_datetime([
+            "2026-09-18T21:00Z", "2026-09-21T06:00Z",
+            "2026-09-21T06:30Z", "2026-09-21T07:00Z"], utc=True)
+        result = assess_freshness(
+            index, US02Y, "30m", pd.Timestamp("2026-09-21T07:40Z"), index[-1],
+            previous_through=index[0]
+        )
+        self.assertEqual(result["status"], "current")
+        self.assertEqual(result["missing_count"], 0)
+        self.assertEqual(result["session_open_variance_count"], 12)
+        self.assertEqual(result["session_open_variance_bar_opens"][0],
+                         "2026-09-21T00:00:00+00:00")
+
+    def test_treasury_hole_after_first_session_bar_remains_data_gap(self):
+        index = pd.to_datetime([
+            "2026-09-18T21:00Z", "2026-09-21T06:00Z",
+            "2026-09-21T07:00Z"], utc=True)
+        result = assess_freshness(
+            index, US02Y, "30m", pd.Timestamp("2026-09-21T07:40Z"), index[-1],
+            previous_through=index[0]
+        )
+        self.assertEqual(result["status"], "interior_gap")
+        self.assertEqual(result["missing_count"], 1)
+        self.assertEqual(result["missing_bar_opens"], ["2026-09-21T06:30:00+00:00"])
+
+    def test_treasury_4h_omitted_reopen_bar_is_not_a_data_gap(self):
+        index = pd.to_datetime([
+            "2026-09-18T19:00Z", "2026-09-21T03:00Z"], utc=True)
+        result = assess_freshness(
+            index, US02Y, "4H", pd.Timestamp("2026-09-21T07:10Z"), index[-1],
+            previous_through=index[0]
+        )
+        self.assertEqual(result["status"], "current")
+        self.assertEqual(result["missing_count"], 0)
+        self.assertEqual(result["session_open_variance_count"], 1)
+        self.assertEqual(result["session_open_variance_bar_opens"],
+                         ["2026-09-20T23:00:00+00:00"])
 
 
 class Store:
