@@ -145,6 +145,7 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
     engine_enabled = mode == "live" and engine_config.get("enabled", False)
     ticker_states, ticker_batches = {}, {}
     receipts = []
+    initial_warnings = []
     if engine_enabled:
         from .state_store import TickerStore
         from .state_pipeline import observation_batch, process_ticker
@@ -163,14 +164,20 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
                                         {"property": "Ticker", "title": {"is_not_empty": True}})}
         if engine_config.get("report_page"):
             from .report_packet import delivery_receipt
-            receipts = delivery_receipt(client, engine_config["report_page"])
+            try:
+                receipts = delivery_receipt(client, engine_config["report_page"])
+            except (ValueError, RuntimeError, OSError) as exc:
+                # A reporter formatting error may cause duplicate narration, but
+                # must never stop market-data collection or durable state updates.
+                initial_warnings.append({"component": "report_receipt",
+                                         "kind": "receipt_invalid", "warning": str(exc)})
         for instrument in instruments:
             ticker = instrument.get("notion_ticker", instrument["id"])
             ticker_states[ticker] = acknowledge(ticker_store.load(ticker, now.isoformat()), receipts)
             ticker_batches[ticker] = {}
     report = {"run_at": now.isoformat(), "mode": mode, "validation": "Unvalidated",
               "status": "running", "streams": [], "events": [], "created": 0, "existing": 0,
-              "warnings": [], "errors": []}
+              "warnings": initial_warnings, "errors": []}
     frames, live_streams = {}, []
     version = indicator_version(config["pine_sha256"])
     for instrument in instruments:

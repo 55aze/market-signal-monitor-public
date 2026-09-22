@@ -40,3 +40,23 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(delivery_receipt(client,'page'),['abc'])
         publish_packet(client,'page',{'should_report':False})
         self.assertEqual(set(client.request.call_args.args[2]['properties']),{'Packet'})
+
+    def test_delivery_receipt_accepts_safe_legacy_csv_and_deduplicates(self):
+        from market_signal_monitor.report_packet import delivery_receipt
+        first, second = '21cf0ab199642eb1afb37e03', '0e0d122f5e8b8359dd15621b'
+        client = Mock()
+        client.request.return_value = {'properties': {
+            'Packet': {'type':'rich_text','rich_text':[]},
+            'Delivered IDs': {'type':'rich_text','rich_text':[
+                {'plain_text': f'{first}, {second}, {first}'}]}}}
+        self.assertEqual(delivery_receipt(client, 'page'), [first, second])
+
+    def test_delivery_receipt_rejects_arbitrary_malformed_text(self):
+        from market_signal_monitor.report_packet import delivery_receipt
+        client = Mock()
+        client.request.return_value = {'properties': {
+            'Packet': {'type':'rich_text','rich_text':[]},
+            'Delivered IDs': {'type':'rich_text','rich_text':[
+                {'plain_text':'not valid receipt text'}]}}}
+        with self.assertRaisesRegex(ValueError, 'JSON string array'):
+            delivery_receipt(client, 'page')
