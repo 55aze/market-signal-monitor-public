@@ -66,6 +66,49 @@ class ReportingConsistencyTests(unittest.TestCase):
         self.assertEqual(delivered['delivered'][0]['receipt_confirmed_at'], '2026-09-13T07:00:00Z')
         self.assertEqual(acknowledge(delivered, receipt, confirmed_at='2026-09-14T00:00:00Z'), delivered)
 
+    def test_every_live_30m_signal_is_a_specific_durable_packet_item(self):
+        s = initial()
+        e = dict(event_id='raw-30m', ticker='TEST', timeframe='30m', signal='Sell',
+                 timestamp='2026-09-23T14:00:00Z', confirmation_at='2026-09-23T14:30:00Z',
+                 first_seen='2026-09-23T14:42:00Z', price=106.65,
+                 market_timezone='America/New_York')
+        first = process_ticker(s, {}, [e], '2026-09-23T15:00:00Z')
+        self.assertEqual([item['kind'] for item in first['pending']], ['RAW_SIGNAL'])
+        raw = first['pending'][0]
+        self.assertEqual((raw['source_event_id'], raw['bar_at'], raw['price']),
+                         ('raw-30m', e['timestamp'], 106.65))
+        data = packet([first], now='2026-09-23T15:00:00Z', since='2026-09-22T00:00:00Z')
+        self.assertEqual(data['raw_signals'], [raw])
+        self.assertEqual(data['acknowledgement_ids'], [raw['id']])
+        self.assertEqual(data['affected_states'], [])
+        self.assertEqual(process_ticker(first, {}, [e], '2026-09-23T16:00:00Z')['pending'],
+                         first['pending'])
+
+    def test_raw_signal_survives_lifecycle_freeze_and_receipt(self):
+        s = initial()
+        s['stream_errors'] = {'4H': True}
+        s['uncertainty'] = ['Unavailable stream(s): 4H']
+        e = dict(event_id='raw-frozen', ticker='TEST', timeframe='30m', signal='Bottom',
+                 timestamp='2026-09-23T14:00:00Z', confirmation_at='2026-09-23T14:30:00Z',
+                 first_seen='2026-09-23T14:42:00Z', price=104.0)
+        frozen = process_ticker(s, {}, [e], '2026-09-23T15:00:00Z')
+        self.assertEqual([item['kind'] for item in frozen['pending']], ['RAW_SIGNAL'])
+        self.assertNotIn('raw-frozen', frozen['seen'])
+        delivered = acknowledge(frozen, [frozen['pending'][0]['id']])
+        self.assertEqual(process_ticker(delivered, {}, [e], '2026-09-23T16:00:00Z')['pending'], [])
+
+    def test_preexisting_seen_signals_do_not_flood_new_raw_outbox(self):
+        s = initial()
+        s['seen'] = ['old-raw']
+        e = dict(event_id='old-raw', ticker='TEST', timeframe='30m', signal='Sell',
+                 timestamp='2026-09-22T14:00:00Z', confirmation_at='2026-09-22T14:30:00Z')
+        self.assertEqual(process_ticker(s, {}, [e], '2026-09-23T15:00:00Z')['pending'], [])
+
+    def test_future_confirmation_is_not_a_raw_packet_item(self):
+        e = dict(event_id='future-raw', ticker='TEST', timeframe='30m', signal='Sell',
+                 timestamp='2026-09-23T14:00:00Z', confirmation_at='2026-09-23T16:00:00Z')
+        self.assertEqual(process_ticker(initial(), {}, [e], '2026-09-23T15:00:00Z')['pending'], [])
+
     def test_receipt_wrong_batch_is_rejected(self):
         client = Mock()
         data = {'packet_id':'wrong','item_ids':['abc'],'delivered_at':'2026-09-01T00:00:00Z'}

@@ -35,14 +35,18 @@ def theme_evidence(states, membership, exposure, since, now):
 def packet(states, *, now, since, membership=None, exposure=None):
     events = sorted([e for s in states for e in s['pending']],
                     key=lambda e: (e['kind'] != 'OPPORTUNITY', e['at'], e['id']))
-    affected = {e['ticker'] for e in events}
+    material = [e for e in events if e['kind'] != 'RAW_SIGNAL']
+    # Keep the large structure payload for material subjects only. Every raw
+    # signal still has its own receipt ID and exact bar/price in the packet.
+    affected = {e['ticker'] for e in material}
     gaps = [{'ticker':s['ticker'], 'reasons':s['uncertainty']} for s in states if s['uncertainty']]
     ids = [e['id'] for e in events]
     return dict(version=1, as_of=now, packet_id=identity('packet', sorted(ids)),
         coverage_snapshot={s['ticker']:s.get('coverage', {}) for s in states if s['ticker'] in affected},
         should_report=bool(events),
-        new_moves=[e for e in events if e['kind'] == 'HIGHER_TF_SIGNAL' or e.get('to') == 'Signal'],
-        state_changes=[e for e in events if e['kind'] != 'HIGHER_TF_SIGNAL' and e.get('to') != 'Signal'],
+        raw_signals=[e for e in events if e['kind'] == 'RAW_SIGNAL'],
+        new_moves=[e for e in material if e['kind'] == 'HIGHER_TF_SIGNAL' or e.get('to') == 'Signal'],
+        state_changes=[e for e in material if e['kind'] != 'HIGHER_TF_SIGNAL' and e.get('to') != 'Signal'],
         affected_states=[{k:s[k] for k in ('ticker','stage','direction','origin_tf','streak',
             'last_bar','highest_bottom_tf','highest_sell_tf','parent_regime','structures','uncertainty')}
             for s in states if s['ticker'] in affected],

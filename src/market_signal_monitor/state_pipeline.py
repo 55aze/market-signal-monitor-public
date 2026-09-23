@@ -2,7 +2,35 @@
 from copy import deepcopy
 import pandas as pd
 from .snapshot import finite, snapshot
-from .state_engine import advance, policy, TF, identity
+from .state_engine import advance, policy, TF, identity, stamp
+
+
+def _append_raw_signals(state, events, now):
+    """Keep every live signal in the durable report outbox, including 30m noise.
+
+    Raw delivery is independent of lifecycle replay: an unavailable sibling
+    stream may freeze setup transitions without hiding a confirmed signal.
+    Existing ``seen`` IDs form the cutover baseline for pre-existing states.
+    """
+    seen = set(state.get('seen', ())) | set(state.get('raw_seen', ()))
+    for event in events:
+        event_id = event.get('event_id')
+        confirmed = event.get('confirmation_at') or event.get('next_bar_at')
+        if (event.get('backfill') or event.get('ticker') != state['ticker'] or
+                event.get('timeframe') not in TF or event.get('signal') not in {'Bottom', 'Sell'} or
+                not event_id or not confirmed or event_id in seen or stamp(confirmed) > stamp(now) or
+                (state.get('signal_cutoff') and stamp(confirmed) <= stamp(state['signal_cutoff']))):
+            continue
+        state['pending'].append({
+            'id': identity('raw-signal', event_id), 'kind': 'RAW_SIGNAL',
+            'source_event_id': event_id, 'ticker': state['ticker'],
+            'signal': event['signal'], 'origin_tf': event['timeframe'],
+            'at': confirmed, 'bar_at': event['timestamp'],
+            'confirmed_at': confirmed, 'detected_at': event.get('first_seen'),
+            'price': event.get('price'), 'value_unit': event.get('value_unit', 'Price'),
+            'market_timezone': event.get('market_timezone')})
+        state.setdefault('raw_seen', []).append(event_id)
+        seen.add(event_id)
 
 
 def observation_batch(bars, calculated, instrument, timeframe, confirmations, now):
@@ -23,6 +51,7 @@ def observation_batch(bars, calculated, instrument, timeframe, confirmations, no
 
 def _process_ticker(state, batches, events, now, rules=None):
     s = deepcopy(state)
+    _append_raw_signals(s, events, now)
     origin = s['origin_tf']
     for tf, batch in batches.items():
         if batch.get('coverage'):
@@ -61,6 +90,8 @@ def _process_ticker(state, batches, events, now, rules=None):
     s['uncertainty'] = []
     bars = [b for batch in batches.values() for b in batch.get('bars', [])]
     s = advance(s, bars, events, now, policy(rules))
+    # Successful lifecycle replay now remembers the signal in ``seen``.
+    s['raw_seen'] = [event_id for event_id in s.get('raw_seen', ()) if event_id not in s['seen']]
     # Parent context is descriptive and never silently changes the setup stage.
     parent = next((tf for tf in TF if TF[tf] > TF.get(s['origin_tf'], 99)), None)
     if parent in s['structures']:
