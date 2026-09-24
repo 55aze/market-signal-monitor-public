@@ -4,12 +4,53 @@ from unittest.mock import Mock
 from test_state_engine import initial, bar
 from market_signal_monitor.state_pipeline import process_ticker
 from market_signal_monitor.state_engine import advance, acknowledge, identity
-from market_signal_monitor.report_packet import packet, delivery_receipt, DeliveryReceipt
+from market_signal_monitor.report_packet import packet, delivery_receipt, DeliveryReceipt, structure_ladder
 from market_signal_monitor.backfill import StatusStore
 from market_signal_monitor.notion import Notion
 
 
 class ReportingConsistencyTests(unittest.TestCase):
+    def test_structure_ladder_orders_bounds_price_and_ema200(self):
+        def structure(blue, yellow, price, ema200):
+            return {'snapshot': {'values': {
+                'blueUpperBand': blue[0], 'blueLowerBand': blue[1],
+                'yellowUpperBand': yellow[0], 'yellowLowerBand': yellow[1],
+                'Close': price, 'EMA200': ema200}}}
+
+        cases = (
+            (structure((110, 108), (102, 100), 105, 90),
+             '4H  🟦 > ● > 🟨 > E200'),
+            (structure((120, 105), (115, 100), 110, 90),
+             '4H  🟦顶 > 🟨顶 > ● > 🟦底 > 🟨底 > E200'),
+            (structure((115, 100), (120, 105), 102, 110),
+             '4H  🟨顶 > 🟦顶 > E200 > 🟨底 > ● > 🟦底'),
+            (structure((120, 110), (100, 90), 115, 105),
+             '4H  🟦顶 > ● > 🟦底 > E200 > 🟨'),
+            (structure((120, 100), (115, 105), 110, 90),
+             '4H  🟦顶 > 🟨顶 > ● > 🟨底 > 🟦底 > E200'),
+            (structure((120, 110), (100, 90), 110, 105),
+             '4H  🟦顶 > ● = 🟦底 > E200 > 🟨'),
+        )
+        for item, expected in cases:
+            with self.subTest(expected=expected):
+                self.assertEqual(structure_ladder('4H', item), expected)
+        self.assertEqual(structure_ladder('4H', structure((120, 110), (100, 90), 115, None)),
+                         '4H  — (结构数据不完整)')
+
+    def test_packet_adds_ladder_without_changing_engine_state(self):
+        s = initial()
+        s['structures']['4H'] = {'timestamp': '2026-09-23T14:00:00Z',
+                                  'snapshot': {'values': {
+                                      'Close': 105, 'EMA200': 90,
+                                      'blueUpperBand': 110, 'blueLowerBand': 108,
+                                      'yellowUpperBand': 102, 'yellowLowerBand': 100}}}
+        s['pending'] = [{'id': 'material', 'kind': 'DATA_RECOVERED', 'ticker': 'TEST',
+                         'at': '2026-09-23T15:00:00Z'}]
+        data = packet([s], now='2026-09-23T15:00:00Z', since='2026-09-22T00:00:00Z')
+        self.assertEqual(data['affected_states'][0]['structures']['4H']['ladder'],
+                         '4H  🟦 > ● > 🟨 > E200')
+        self.assertNotIn('ladder', s['structures']['4H'])
+
     def recovered(self, state):
         b = bar(22, tf='30m', snapshot={}, value_unit='Price')
         return process_ticker(state, {'30m':{'bars':[b]}}, [], '2026-09-23T00:00:00Z')
