@@ -1,6 +1,44 @@
 """Compact evidence, not a second state machine or an investment recommendation."""
 from collections import defaultdict
+from .snapshot import finite
 from .state_engine import stamp, TF, identity
+
+
+def structure_ladder(timeframe, structure):
+    """Render price, EMA200 and both bands from the same confirmed bar, high to low."""
+    values = (structure.get('snapshot') or {}).get('values') or {}
+    keys = ('Close', 'EMA200', 'blueUpperBand', 'blueLowerBand',
+            'yellowUpperBand', 'yellowLowerBand')
+    numbers = {key: finite(values.get(key)) for key in keys}
+    if (any(value is None for value in numbers.values()) or
+            numbers['blueUpperBand'] < numbers['blueLowerBand'] or
+            numbers['yellowUpperBand'] < numbers['yellowLowerBand']):
+        return f'{timeframe}  — (结构数据不完整)'
+
+    blue_upper, blue_lower = numbers['blueUpperBand'], numbers['blueLowerBand']
+    yellow_upper, yellow_lower = numbers['yellowUpperBand'], numbers['yellowLowerBand']
+    overlap = max(blue_lower, yellow_lower) <= min(blue_upper, yellow_upper)
+    points = (numbers['Close'], numbers['EMA200'])
+    blue_open = overlap or any(blue_lower <= point <= blue_upper for point in points)
+    yellow_open = overlap or any(yellow_lower <= point <= yellow_upper for point in points)
+    levels = [(numbers['Close'], '●'), (numbers['EMA200'], 'E200')]
+    for color, upper, lower, expanded in (
+            ('🟦', blue_upper, blue_lower, blue_open),
+            ('🟨', yellow_upper, yellow_lower, yellow_open)):
+        if expanded:
+            levels.extend(((upper, color + '顶'), (lower, color + '底')))
+        else:
+            levels.append(((upper + lower) / 2, color))
+    groups = defaultdict(list)
+    for value, label in levels:
+        groups[value].append(label)
+    return f'{timeframe}  ' + ' > '.join(' = '.join(groups[value])
+                                             for value in sorted(groups, reverse=True))
+
+
+def _report_structures(structures):
+    return {tf: {**structure, 'ladder': structure_ladder(tf, structure)}
+            for tf, structure in structures.items()}
 
 
 def theme_evidence(states, membership, exposure, since, now):
@@ -47,8 +85,9 @@ def packet(states, *, now, since, membership=None, exposure=None):
         raw_signals=[e for e in events if e['kind'] == 'RAW_SIGNAL'],
         new_moves=[e for e in material if e['kind'] == 'HIGHER_TF_SIGNAL' or e.get('to') == 'Signal'],
         state_changes=[e for e in material if e['kind'] != 'HIGHER_TF_SIGNAL' and e.get('to') != 'Signal'],
-        affected_states=[{k:s[k] for k in ('ticker','stage','direction','origin_tf','streak',
-            'last_bar','highest_bottom_tf','highest_sell_tf','parent_regime','structures','uncertainty')}
+        affected_states=[{**{k:s[k] for k in ('ticker','stage','direction','origin_tf','streak',
+            'last_bar','highest_bottom_tf','highest_sell_tf','parent_regime','uncertainty')},
+            'structures':_report_structures(s['structures'])}
             for s in states if s['ticker'] in affected],
         themes=[t for t in theme_evidence(states, membership or {}, exposure or {}, since, now)
                 if any(s['ticker'] in affected and t['theme'] in (membership or {}).get(s['ticker'], []) for s in states)],
