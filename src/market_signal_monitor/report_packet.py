@@ -93,6 +93,9 @@ def theme_evidence(states, membership, exposure, since, now):
 # Connector readback still needs an actual scheduled-task validation.
 MAX_PACKET_CHARS = 12000
 MAX_BATCH_ITEMS = 25
+MAX_CONTEXT_TICKERS = 5
+MAX_DIAGNOSTIC_ITEMS = 5
+MAX_REPORT_THEMES = 2
 
 
 class PacketSerializationError(ValueError):
@@ -148,7 +151,9 @@ def packet(states, *, now, since, membership=None, exposure=None,
         data['batch'] = dict(total_pending=len(events), included=count,
                              remaining=len(events) - count, order='oldest_first')
         if operational_errors is not None:
-            data['operational_errors'] = operational_errors
+            data['operational_errors'] = operational_errors[:MAX_DIAGNOSTIC_ITEMS]
+            data['context_omitted']['operational_errors'] = max(
+                0, len(operational_errors) - MAX_DIAGNOSTIC_ITEMS)
             data['should_report'] = data['should_report'] or bool(operational_errors)
         if coverage is not None:
             data['coverage'] = coverage
@@ -165,21 +170,27 @@ def _packet(states, events, *, now, since, membership=None, exposure=None):
     # Full snapshots and lineage remain in Engine State. The reporter needs
     # deterministic item lines and compact current context, not duplicate events.
     affected = {e['ticker'] for e in material}
-    gaps = [{'ticker':s['ticker'], 'reasons':s['uncertainty']} for s in states if s['uncertainty']]
+    subjects = sorted((s for s in states if s['ticker'] in affected), key=lambda s: s['ticker'])
+    context = subjects[:MAX_CONTEXT_TICKERS]
+    gaps = [{'ticker':s['ticker'], 'reasons':s['uncertainty']}
+            for s in sorted(states, key=lambda s: s['ticker']) if s['uncertainty']]
+    themes = [_report_theme(t) for t in theme_evidence(
+        states, membership or {}, exposure or {}, since, now)
+        if any(t['theme'] in (membership or {}).get(ticker, []) for ticker in affected)]
     ids = [e['id'] for e in events]
     return dict(version=2, as_of=now, packet_id=identity('packet', sorted(ids)),
         report_items=[{'id': e['id'], 'kind': e['kind'], 'line': _report_line(e)} for e in events],
         acknowledgement_ids=ids,
-        coverage_snapshot={s['ticker']:_report_coverage(s.get('coverage', {}))
-                           for s in states if s['ticker'] in affected},
+        coverage_snapshot={s['ticker']:_report_coverage(s.get('coverage', {})) for s in context},
         should_report=bool(events),
         affected_states=[{**{k:s[k] for k in ('ticker','stage','direction','origin_tf','streak',
             'last_bar','highest_bottom_tf','highest_sell_tf','parent_regime','uncertainty')},
             'structures':_report_structures(s['structures'])}
-            for s in states if s['ticker'] in affected],
-        themes=[_report_theme(t) for t in theme_evidence(states, membership or {}, exposure or {}, since, now)
-                if any(s['ticker'] in affected and t['theme'] in (membership or {}).get(s['ticker'], []) for s in states)],
-        data_gaps=gaps,
+            for s in context],
+        themes=themes[:MAX_REPORT_THEMES], data_gaps=gaps[:MAX_DIAGNOSTIC_ITEMS],
+        context_omitted={'affected_states':len(subjects) - len(context),
+                         'themes':max(0, len(themes) - MAX_REPORT_THEMES),
+                         'data_gaps':max(0, len(gaps) - MAX_DIAGNOSTIC_ITEMS)},
         lineage_coverage='Imported highest TFs have unverified effective windows; no automatic expiry',
         validation='Python indicators remain TradingView-parity unvalidated')
 

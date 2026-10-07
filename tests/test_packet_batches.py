@@ -110,6 +110,34 @@ class PacketBatchTests(unittest.TestCase):
         self.assertIsNone(states[0]['delivered'][0]['delivered_at'])
         self.assertEqual(states[0]['delivered'][0]['delivery_evidence'], 'prior_complete_report')
 
+    def test_large_optional_context_cannot_block_delivery_of_small_items(self):
+        states, errors, membership = [], [], {}
+        for i in range(80):
+            ticker = f'T{i:03}'
+            state = seed({'Ticker': ticker})
+            state['pending'] = [dict(id=identity('event', ticker), ticker=ticker,
+                                     kind='DATA_GAP', at=SINCE, reason='stream unavailable')]
+            state['uncertainty'] = ['Missing confirmed bars; ' * 10]
+            states.append(state)
+            errors.append(dict(kind='fetch', stream=ticker + ':1D', ticker=ticker))
+            membership[ticker] = [f'Theme{j:02}' for j in range(10)]
+        original = copy.deepcopy(states)
+        data = packet(states, now=NOW, since=SINCE, membership=membership,
+                      operational_errors=errors, coverage='partial')
+        self.assertGreater(data['batch']['included'], 0)
+        self.assertLessEqual(len(json.dumps(data, ensure_ascii=False, separators=(',', ':'))), 12000)
+        self.assertEqual(len(data['affected_states']), 5)
+        self.assertEqual(len(data['data_gaps']), 5)
+        self.assertEqual(len(data['operational_errors']), 5)
+        self.assertEqual(len(data['themes']), 2)
+        self.assertEqual(data['context_omitted'], {
+            'affected_states': data['batch']['included'] - 5,
+            'data_gaps': 75, 'operational_errors': 75, 'themes': 8})
+        self.assertEqual(data['coverage'], 'partial')
+        self.assertEqual(data['packet_end'], data['packet_id'])
+        self.assertEqual(list(data)[-1], 'packet_end')
+        self.assertEqual(states, original)
+
     def test_character_budget_counts_operational_payload_and_shrinks_prefix(self):
         states = states_with_backlog(8)
         one = packet(states, now=NOW, since=SINCE, max_items=1,
