@@ -6,6 +6,7 @@ from unittest.mock import Mock
 from market_signal_monitor.notion import Notion, NotionHTTPError
 from market_signal_monitor.report_packet import (
     packet, publish_packet, delivery_receipt, PacketBudgetError, PacketSerializationError,
+    MAX_PACKET_CHARS,
 )
 from market_signal_monitor.state_engine import seed, acknowledge, identity
 
@@ -32,6 +33,49 @@ def read_receipt(value):
 
 
 class PacketBatchTests(unittest.TestCase):
+    def test_reporter_packet_fits_read_budget_without_losing_batch_or_ladders(self):
+        states = states_with_backlog(283)
+        state = states[0]
+        state['pending'][0].update(kind='STAGE_CHANGED', **{'from': 'Developing', 'to': 'Qualified'})
+        for tf in ('30m', '4H', '1D', '1W'):
+            state['structures'][tf] = {
+                'timestamp': '2026-10-06T00:00:00Z', 'confirmed_at': NOW,
+                'value_unit': 'Price', 'snapshot': {'values': {
+                    'Close': 105, 'EMA200': 90, 'blueUpperBand': 110,
+                    'blueLowerBand': 108, 'yellowUpperBand': 102,
+                    'yellowLowerBand': 100}, 'extra': 'x' * 5000}}
+            state.setdefault('coverage', {})[tf] = {
+                'status': 'current', 'checked_at': NOW, 'expected_latest': SINCE,
+                'actual_latest': SINCE, 'missing_count': 0, 'extra': 'x' * 5000}
+        state['lineage'] = [dict(event_id=f'history-{i}', signal='Bottom',
+                                timeframe='1D', confirmation_at=NOW) for i in range(200)]
+        original = copy.deepcopy(states)
+        data = packet(states, now=NOW, since=SINCE, membership={'TEST': ['Theme']},
+                      exposure={'TEST': 'one-exposure'}, operational_errors=[], coverage='complete')
+        payload = json.dumps(data, ensure_ascii=False, separators=(',', ':'))
+        self.assertLessEqual(len(payload), 12000, 'Stored Packet still exceeds the reporter read budget')
+        self.assertEqual(data['version'], 2)
+        self.assertEqual(data['batch']['included'], 25)
+        self.assertEqual(data['batch']['remaining'], 258)
+        ids = data['acknowledgement_ids']
+        self.assertEqual(ids, [item['id'] for item in data['report_items']])
+        self.assertEqual(data['packet_id'], identity('packet', sorted(ids)))
+        self.assertEqual(data['packet_end'], data['packet_id'])
+        self.assertEqual(list(data)[-1], 'packet_end')
+        self.assertNotIn('raw_signals', data)
+        self.assertNotIn('new_moves', data)
+        self.assertNotIn('state_changes', data)
+        structures = data['affected_states'][0]['structures']
+        for tf in ('30m', '4H', '1D', '1W'):
+            self.assertEqual(structures[tf]['ladder'], f'{tf}  🟦 > ● > 🟨 > E200')
+            self.assertEqual(structures[tf]['confirmed_at'], NOW)
+            self.assertNotIn('snapshot', structures[tf])
+            self.assertNotIn('extra', data['coverage_snapshot']['TEST'][tf])
+        bottom = data['themes'][0]['directions']['Bottom']
+        self.assertEqual(bottom['event_density'], 200)
+        self.assertNotIn('chronology', bottom)
+        self.assertEqual(states, original)
+
     def test_oldest_first_retry_and_ack_drain_every_item_once(self):
         states = states_with_backlog()
         original = copy.deepcopy(states)
@@ -45,7 +89,7 @@ class PacketBatchTests(unittest.TestCase):
             self.assertLessEqual(len(ids), 25)
             self.assertFalse(consumed.intersection(ids))
             self.assertEqual(ids, [i['id'] for i in data['report_items']])
-            self.assertEqual(ids, [e['id'] for e in data['raw_signals']])
+            self.assertTrue(all(item['kind'] == 'RAW_SIGNAL' for item in data['report_items']))
             self.assertIn('30m Bottom', data['report_items'][0]['line'])
             self.assertIn('bar_at=', data['report_items'][0]['line'])
             client = Mock()
@@ -89,14 +133,15 @@ class PacketBatchTests(unittest.TestCase):
 
     def test_oversized_single_item_and_empty_packet_fail_explicitly(self):
         states = states_with_backlog(1)
-        states[0]['pending'][0]['extra'] = 'x' * 175000
+        states[0]['pending'][0].update(kind='DATA_GAP', reason='x' * MAX_PACKET_CHARS)
         before = copy.deepcopy(states)
         with self.assertRaises(PacketBudgetError) as caught:
             packet(states, now=NOW, since=SINCE)
-        self.assertGreater(caught.exception.diagnostics['chars'], 175000)
+        self.assertGreater(caught.exception.diagnostics['chars'], MAX_PACKET_CHARS)
         self.assertEqual(states, before)
         with self.assertRaises(PacketBudgetError):
-            packet([], now=NOW, since=SINCE, operational_errors=[{'kind': 'x' * 175000}])
+            packet([], now=NOW, since=SINCE,
+                   operational_errors=[{'kind': 'x' * MAX_PACKET_CHARS}])
 
     def test_new_opportunity_does_not_starve_old_backlog(self):
         states = states_with_backlog(30)
