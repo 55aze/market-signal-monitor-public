@@ -11,6 +11,12 @@ import requests
 from .snapshot import notion_properties, SCHEMA
 
 
+class NotionHTTPError(RuntimeError):
+    def __init__(self, status, method, path):
+        super().__init__(f'Notion HTTP {status} on {method} {path}')
+        self.http_status = status
+
+
 def rich(text):
     text = str(text)
     return [{"type": "text", "text": {"content": text[i:i + 1900]}}
@@ -83,7 +89,7 @@ class Notion:
                     continue
             if not response.ok:
                 # Do not print HTTP bodies or headers, which may contain sensitive context.
-                raise RuntimeError(f"Notion HTTP {response.status_code} on {method} {path}")
+                raise NotionHTTPError(response.status_code, method, path)
             return response.json()
         raise RuntimeError("Notion retry limit reached")
 
@@ -134,7 +140,7 @@ class Notion:
         row = rows[0]
         props = row['properties']
         status = (props.get('Report Status', {}).get('select') or {}).get('name')
-        if status == 'Reported' and props.get('Reported At', {}).get('date'):
+        if status == 'Reported':
             # Preserve the first delivery when multiple transitions share a source.
             if not props.get('Surfaced', {}).get('checkbox'):
                 self.request('PATCH', f"pages/{row['id']}",
@@ -142,7 +148,7 @@ class Notion:
             return
         self.request('PATCH', f"pages/{row['id']}", {'properties':{
             'Report Status':{'select':{'name':'Reported'}}, 'Surfaced':{'checkbox':True},
-            'Reported At':{'date':{'start':delivered_at}},
+            'Reported At':{'date':{'start':delivered_at} if delivered_at else None},
             'Report ID':{'rich_text':rich(packet_id)}}})
 
     def append(self, event):

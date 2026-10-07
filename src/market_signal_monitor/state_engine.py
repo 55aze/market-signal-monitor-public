@@ -209,6 +209,8 @@ def acknowledge(state, event_ids, *, confirmed_at=None):
             if event['id'] in acknowledged and event['id'] not in known:
                 ledger.append(dict(event, receipt_confirmed_at=confirmed_at,
                     delivered_at=getattr(event_ids, 'delivered_at', None),
-                    packet_id=getattr(event_ids, 'packet_id', None)))
+                    packet_id=getattr(event_ids, 'packet_id', None),
+                    delivery_evidence=getattr(event_ids, 'delivery_evidence', None),
+                    report_ref=getattr(event_ids, 'report_ref', None)))
     s['pending'] = [e for e in s['pending'] if e['id'] not in acknowledged]
     return s

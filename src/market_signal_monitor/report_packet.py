@@ -1,5 +1,6 @@
 """Compact evidence, not a second state machine or an investment recommendation."""
 from collections import defaultdict
+import json
 from .snapshot import finite
 from .state_engine import stamp, TF, identity
 
@@ -70,9 +71,73 @@ def theme_evidence(states, membership, exposure, since, now):
     return result
 
 
-def packet(states, *, now, since, membership=None, exposure=None):
+MAX_PACKET_CHARS = 175000
+MAX_BATCH_ITEMS = 25
+
+
+class PacketSerializationError(ValueError):
+    pass
+
+
+def _encode(data):
+    try:
+        return json.dumps(data, ensure_ascii=False, allow_nan=False, separators=(',', ':'))
+    except (TypeError, ValueError) as exc:
+        raise PacketSerializationError('Report packet is not finite JSON') from exc
+
+
+class PacketBudgetError(ValueError):
+    def __init__(self, data, limit):
+        super().__init__('Report packet cannot fit one item; pending retained')
+        self.diagnostics = packet_diagnostics(data, limit)
+
+
+def packet_diagnostics(data, limit=MAX_PACKET_CHARS):
+    return dict(chars=len(_encode(data)), limit=limit,
+                items=len(data.get('acknowledgement_ids', [])),
+                remaining=data.get('batch', {}).get('remaining', 0))
+
+
+def _report_line(event):
+    if event['kind'] == 'RAW_SIGNAL':
+        return (f"{event['ticker']} · {event.get('origin_tf', 'unknown')} "
+                f"{event.get('signal', 'unknown')} · {event.get('price')} "
+                f"{event.get('value_unit', 'Price')} · bar_at={event.get('bar_at')} · "
+                f"confirmed_at={event.get('confirmed_at')}")
+    change = f"{event['from']} → {event['to']}" if 'from' in event and 'to' in event else ''
+    return (f"{event['ticker']} · {event['kind']} {change} · "
+            f"{event.get('origin_tf', '')} {event.get('direction', '')} · at={event['at']} · "
+            f"{event.get('reason', '')}").rstrip(' ·')
+
+
+def packet(states, *, now, since, membership=None, exposure=None,
+           max_items=MAX_BATCH_ITEMS, max_chars=MAX_PACKET_CHARS,
+           operational_errors=None, coverage=None):
+    """Publish an oldest-first prefix; only acknowledgement consumes the outbox."""
+    if type(max_items) is not int or max_items < 1 or type(max_chars) is not int or not 0 < max_chars <= MAX_PACKET_CHARS:
+        raise ValueError('Invalid packet budget')
     events = sorted([e for s in states for e in s['pending']],
-                    key=lambda e: (e['kind'] != 'OPPORTUNITY', e['at'], e['id']))
+                    key=lambda e: (stamp(e['at']), e['id']))
+    # Bounded work: at most max_items candidates. Rebuild all associated context
+    # for each prefix; never omit an event while acknowledging its ID.
+    for count in range(min(len(events), max_items), -1, -1):
+        if events and count == 0:
+            break
+        data = _packet(states, events[:count], now=now, since=since,
+                       membership=membership, exposure=exposure)
+        data['batch'] = dict(total_pending=len(events), included=count,
+                             remaining=len(events) - count, order='oldest_first')
+        if operational_errors is not None:
+            data['operational_errors'] = operational_errors
+            data['should_report'] = data['should_report'] or bool(operational_errors)
+        if coverage is not None:
+            data['coverage'] = coverage
+        if len(_encode(data)) <= max_chars:
+            return data
+    raise PacketBudgetError(data, max_chars)
+
+
+def _packet(states, events, *, now, since, membership=None, exposure=None):
     material = [e for e in events if e['kind'] != 'RAW_SIGNAL']
     # Keep the large structure payload for material subjects only. Every raw
     # signal still has its own receipt ID and exact bar/price in the packet.
@@ -92,24 +157,25 @@ def packet(states, *, now, since, membership=None, exposure=None):
         themes=[t for t in theme_evidence(states, membership or {}, exposure or {}, since, now)
                 if any(s['ticker'] in affected and t['theme'] in (membership or {}).get(s['ticker'], []) for s in states)],
         data_gaps=gaps, acknowledgement_ids=[e['id'] for e in events],
+        report_items=[{'id': e['id'], 'line': _report_line(e)} for e in events],
         lineage_coverage='Imported highest TFs have unverified effective windows; no automatic expiry',
         validation='Python indicators remain TradingView-parity unvalidated')
 
 
 def publish_packet(client, page_id, data):
     """Patch only Packet. The reporter writes only Delivered IDs: no state race."""
-    import json
     from .notion import rich
-    payload = json.dumps(data, ensure_ascii=False, allow_nan=False, separators=(',', ':'))
-    if len(payload) > 175000:
-        raise ValueError('Report packet too large; retain pending events and partition delivery')
+    payload = _encode(data)
+    if len(payload) > MAX_PACKET_CHARS:
+        raise PacketBudgetError(data, MAX_PACKET_CHARS)
     client.request('PATCH', f'pages/{page_id}', {'properties': {'Packet': {'rich_text':rich(payload)}}})
 
 
 class DeliveryReceipt(list):
-    def __init__(self, ids, packet_id=None, delivered_at=None):
+    def __init__(self, ids, packet_id=None, delivered_at=None, delivery_evidence=None, report_ref=None):
         super().__init__(ids)
         self.packet_id, self.delivered_at = packet_id, delivered_at
+        self.delivery_evidence, self.report_ref = delivery_evidence, report_ref
 
 
 def delivery_receipt(client, page_id):
@@ -132,18 +198,27 @@ def delivery_receipt(client, page_id):
         result = [value.strip() for value in text.split(',')]
         if not result or any(not re.fullmatch(r'[0-9a-f]{24}', value) for value in result):
             raise ValueError('Delivered IDs must be a JSON string array') from None
-    packet_id = delivered_at = None
+    packet_id = delivered_at = delivery_evidence = report_ref = None
     if isinstance(result, dict):
         packet_id, delivered_at = result.get('packet_id'), result.get('delivered_at')
+        delivery_evidence, report_ref = result.get('delivery_evidence'), result.get('report_ref')
+        if not isinstance(packet_id, str) or 'delivered_at' not in result:
+            raise ValueError('Receipt requires packet_id and explicit delivered_at')
+        if report_ref is not None and (not isinstance(report_ref, str) or not report_ref.strip()):
+            raise ValueError('Invalid report reference')
+        if delivered_at is None:
+            if delivery_evidence != 'prior_complete_report':
+                raise ValueError('Unknown delivery time requires prior complete report evidence')
+        elif not isinstance(delivered_at, str):
+            raise ValueError('Invalid delivery timestamp')
+        else:
+            from datetime import datetime, timezone
+            if stamp(delivered_at) > datetime.now(timezone.utc):
+                raise ValueError('Receipt delivery time is in the future')
         result = result.get('item_ids')
-        if not isinstance(packet_id, str) or not isinstance(delivered_at, str):
-            raise ValueError('Receipt requires packet_id and delivered_at')
-        from datetime import datetime, timezone
-        if stamp(delivered_at) > datetime.now(timezone.utc):
-            raise ValueError('Receipt delivery time is in the future')
         if (not isinstance(result, list) or any(not isinstance(v, str) for v in result)
                 or packet_id != identity('packet', sorted(set(result)))):
             raise ValueError('Receipt packet_id does not match item_ids')
     if not isinstance(result, list) or any(not isinstance(v, str) for v in result):
         raise ValueError('Delivered IDs must be a JSON string array')
-    return DeliveryReceipt(list(dict.fromkeys(result)), packet_id, delivered_at)
+    return DeliveryReceipt(list(dict.fromkeys(result)), packet_id, delivered_at, delivery_evidence, report_ref)
