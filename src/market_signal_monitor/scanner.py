@@ -411,8 +411,8 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
                                    for item in state['pending']):
                                 raise ValueError('Receipt predates a pending item')
                         for item in state['pending']:
-                            if (item['id'] in receipts and item.get('source_event_id')
-                                    and getattr(receipts, 'delivered_at', None)):
+                            if (item['id'] in receipts and item['kind'] == 'RAW_SIGNAL' and item.get('source_event_id')
+                                    and getattr(receipts, 'packet_id', None)):
                                 client.mark_reported(item['source_event_id'], receipts.delivered_at,
                                                      receipts.packet_id)
                         state = acknowledge(state, receipts, confirmed_at=now.isoformat())
@@ -429,27 +429,41 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
                 except (ValueError, RuntimeError, OSError) as exc:
                     report["errors"].append({"ticker": ticker, "kind": "state_write_or_compute", "error": str(exc)})
         if not delivery_failed and engine_config.get("report_page"):
+            packet_phase = 'build'
             try:
-                from .report_packet import packet, publish_packet
+                from .report_packet import (packet, publish_packet, packet_diagnostics,
+                                            PacketBudgetError, PacketSerializationError)
                 window = pd.Timedelta(hours=engine_config.get("theme_window_hours", 72))
                 # Manual subset scans must not hide unrelated pending events.
                 packet_states = [ticker_states.get(ticker) or ticker_store.load(ticker, now.isoformat())
                                  for ticker in ticker_store.rows]
                 packet_now = pd.Timestamp(datetime.now(timezone.utc))
+                issues = report["errors"] + [w for w in report["warnings"]
+                                             if w.get("kind") == "data_gap"]
+                operational_errors = [{k: e[k] for k in ("kind", "stream", "ticker") if k in e}
+                                      for e in issues]
+                unverified = any(stream.get("freshness", {}).get("status") == "unverifiable"
+                                 for stream in report["streams"])
+                coverage = 'partial' if issues or unverified or any(s['uncertainty'] for s in packet_states) else 'complete'
                 data = packet(packet_states, now=packet_now.isoformat(),
                               since=(packet_now - window).isoformat(),
                               membership=config.get("theme_membership"),
-                              exposure=config.get("exposure_groups"))
-                issues = report["errors"] + [w for w in report["warnings"]
-                                             if w.get("kind") == "data_gap"]
-                data["operational_errors"] = [{k: e[k] for k in ("kind", "stream", "ticker") if k in e}
-                                              for e in issues]
-                unverified = any(stream.get("freshness", {}).get("status") == "unverifiable"
-                                 for stream in report["streams"])
-                data["coverage"] = "partial" if issues or data["data_gaps"] or unverified else "complete"
-                data["should_report"] = data["should_report"] or bool(issues)
+                              exposure=config.get("exposure_groups"),
+                              operational_errors=operational_errors, coverage=coverage)
+                report['packet_diagnostics'] = packet_diagnostics(data)
+                packet_phase = 'publish'
                 publish_packet(client, engine_config["report_page"], data)
-            except (ValueError, RuntimeError, OSError) as exc:
+            except (ValueError, RuntimeError, OSError, TypeError, KeyError) as exc:
+                diagnostics = report.setdefault('packet_diagnostics', {})
+                diagnostics.update(phase=packet_phase, error_type=type(exc).__name__)
+                if isinstance(exc, PacketBudgetError):
+                    diagnostics.update(exc.diagnostics, code='packet_budget_exceeded')
+                elif isinstance(exc, PacketSerializationError):
+                    diagnostics['code'] = 'packet_serialization_failed'
+                elif getattr(exc, 'http_status', None):
+                    diagnostics.update(code='notion_http', http_status=exc.http_status)
+                else:
+                    diagnostics['code'] = 'packet_build_failed' if packet_phase == 'build' else 'packet_publish_failed'
                 report["errors"].append({"component": "report_packet", "kind": "packet_publish", "error": str(exc)})
     if report["errors"]:
         report["status"] = "partial_failure"

@@ -135,7 +135,7 @@ class ScannerStateTests(unittest.TestCase):
                       'date:Origin Event At:start':bars.index[0].isoformat(),
                       'date:Last Origin Bar:start':bars.index[1].isoformat()})
         state['pending'] = [{'id':'pending','source_event_id':'raw','ticker':'QQQ',
-                             'kind':'HIGHER_TF_SIGNAL','at':bars.index[0].isoformat()}]
+                             'kind':'RAW_SIGNAL','at':bars.index[0].isoformat()}]
         store, client = Mock(), Mock()
         store.load.return_value = state
         store.rows = {'QQQ':{}}
@@ -151,3 +151,60 @@ class ScannerStateTests(unittest.TestCase):
         self.assertEqual(saved['stage'], 'Qualified')
         self.assertIn('pending', [e['id'] for e in saved['pending']])
         self.assertEqual(report['errors'][0]['kind'], 'receipt_write')
+
+    def test_unknown_time_ack_marks_only_raw_and_keeps_separate_confirmation_clock(self):
+        from market_signal_monitor.report_packet import DeliveryReceipt
+        bars, calculated = fixture()
+        calculated['DXDX'] = calculated['DBJGXC'] = 0
+        config = self.config()
+        config['ticker_engine']['report_page'] = 'report-page'
+        state = seed({'Ticker': 'QQQ'})
+        state['pending'] = [dict(id=kind, source_event_id='raw', ticker='QQQ',
+                                 kind=kind, at=bars.index[0].isoformat())
+                            for kind in ('RAW_SIGNAL', 'HIGHER_TF_SIGNAL')]
+        store, client = Mock(), Mock()
+        store.load.return_value = state
+        store.rows = {'QQQ': {}}
+        receipt = DeliveryReceipt(['RAW_SIGNAL', 'HIGHER_TF_SIGNAL'], 'batch', None,
+                                  'prior_complete_report', 'visible report')
+        with patch('market_signal_monitor.scanner.calculate', return_value=calculated), \
+             patch('market_signal_monitor.scanner.has_close_policy', return_value=False), \
+             patch('market_signal_monitor.report_packet.delivery_receipt', return_value=receipt), \
+             patch('market_signal_monitor.report_packet.publish_packet'):
+            report = run(config, mode='live', since=bars.index[0].isoformat(),
+                         fetcher=lambda *a: bars, client=client,
+                         status_store=LiveStore(), ticker_store=store)
+        client.mark_reported.assert_called_once_with('raw', None, 'batch')
+        saved = store.save.call_args.args[1]
+        self.assertEqual(saved['pending'], [])
+        self.assertIsNone(saved['delivered'][0]['delivered_at'])
+        self.assertEqual(saved['delivered'][0]['report_ref'], 'visible report')
+        self.assertEqual(report['errors'], [])
+
+    def test_packet_http_failure_retains_safe_diagnostics_and_pending(self):
+        from market_signal_monitor.notion import NotionHTTPError
+        bars, calculated = fixture()
+        calculated['DXDX'] = calculated['DBJGXC'] = 0
+        config = self.config()
+        config['ticker_engine']['report_page'] = 'report-page'
+        state = seed({'Ticker': 'QQQ'})
+        state['pending'] = [dict(id='old', ticker='QQQ', kind='DATA_GAP',
+                                 at=bars.index[0].isoformat())]
+        store, client = Mock(), Mock()
+        store.load.return_value = state
+        store.rows = {'QQQ': {}}
+        with patch('market_signal_monitor.scanner.calculate', return_value=calculated), \
+             patch('market_signal_monitor.scanner.has_close_policy', return_value=False), \
+             patch('market_signal_monitor.report_packet.delivery_receipt', return_value=[]), \
+             patch('market_signal_monitor.report_packet.publish_packet',
+                   side_effect=NotionHTTPError(400, 'PATCH', 'pages/private-id')):
+            report = run(config, mode='live', since=bars.index[0].isoformat(),
+                         fetcher=lambda *a: bars, client=client,
+                         status_store=LiveStore(), ticker_store=store)
+        diagnostics = report['packet_diagnostics']
+        self.assertEqual(diagnostics['code'], 'notion_http')
+        self.assertEqual(diagnostics['http_status'], 400)
+        self.assertEqual(diagnostics['phase'], 'publish')
+        self.assertNotIn('private-id', str(diagnostics))
+        self.assertGreater(diagnostics['chars'], 0)
+        self.assertIn('old', [e['id'] for e in store.save.call_args.args[1]['pending']])

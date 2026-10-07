@@ -125,13 +125,47 @@ have no bar/confirmation clock. Existing items retain their original IDs and
 missing historical metadata is not invented.
 
 Delivered IDs accepts the legacy JSON array/strict CSV or the new receipt object:
-{packet_id, item_ids, delivered_at}. The new prompt requires the actual visible
-prior report's timestamp. Python persists delivered_at separately from
-receipt_confirmed_at in Engine State's delivered ledger. Legacy receipts have
-unknown delivery time and do not manufacture Raw Event reporting timestamps.
-Raw events with a source_event_id are marked Reported/Surfaced together before
+{packet_id, item_ids, delivered_at}. The reporter verifies a complete prior
+report; precise delivery time may be explicitly unknown under the protocol below.
+Python persists delivered_at separately from receipt_confirmed_at in Engine
+State's delivered ledger. Legacy receipts have unknown delivery time and do not
+manufacture Raw Event reporting timestamps.
+RAW_SIGNAL events with a source_event_id are marked Reported/Surfaced together before
 the corresponding pending item is acknowledged. Failed writes leave it pending
 and do not stop market-state processing. Replay preserves the first delivery.
 Lifecycle changes are separate report items, not delivery of the original raw
 signal. The only evidence of receipt is the reporter's verified prior final
 message; this is still not a platform transaction or exactly-once guarantee.
+
+## Bounded delivery and unknown message times (2026-10-07)
+
+Packet now selects an oldest-first prefix of at most 25 pending items and fits the
+complete payload, including coverage and operational diagnostics, within 175,000
+characters. `batch` gives total/included/remaining counts. `report_items` supplies
+one deterministic line per selected ID. Unselected items remain in Engine State;
+only acknowledged IDs leave pending. A retry can refresh structures but never
+consumes an item. A single item that cannot fit fails explicitly. This replaces
+the previous unbounded all-pending Packet; no date cutoff or automatic deletion
+is introduced. Theme evidence still uses its own labelled rolling window.
+
+Receipt objects may now explicitly contain `delivered_at: null` together with
+`delivery_evidence: "prior_complete_report"`. The reporter must have actually
+read the complete earlier report; the flag is an attestation, not a platform
+proof. A real `report_ref` is optional and stored in the delivery ledger. Missing
+history or incomplete coverage still cannot be acknowledged. A precise message
+time is optional; `receipt_confirmed_at` remains a distinct scanner timestamp.
+This supersedes the earlier requirement that every new receipt have a known
+message timestamp. Legacy ID lists remain readable for migration.
+
+Only acknowledged RAW_SIGNAL items update the corresponding source event's
+Reported/Surfaced fields. Unknown delivery time leaves Reported At empty, while
+Report ID identifies the verified batch. Lifecycle/context items do not mark the
+raw signal reported. Retries preserve the first recorded delivery, including an
+explicitly unknown time. A failed raw-event write retains the ticker's pending
+items for reconciliation on the next scan.
+
+Public run summaries expose only safe Packet counts, character budget, failure
+phase/code/type and HTTP status where available. Private payloads and request
+paths stay out of the public summary. Production recovery also requires applying
+the updated reporter prompt and validating actual report/receipt consumption;
+a local test or a green scanner alone is not an end-to-end delivery check.
