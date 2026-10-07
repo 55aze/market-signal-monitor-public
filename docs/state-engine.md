@@ -37,11 +37,12 @@ compression need explicit validated policies.
 No automatic expiry is applied. A successful setup is not expired just because its
 original raw signal aged. Imported theme support is context, never a stage trigger.
 
-Theme reporting aggregates Bottom and Sell separately over an explicitly labelled
+Theme evidence aggregates Bottom and Sell separately over an explicitly labelled
 rolling timestamp window (default 72 hours, NOT claimed to be three trading
 sessions). It provides event density, unique tickers, explicitly mapped independent
 exposures, chronological participation, healthy members and failing members.
-Unmapped exposures remain unavailable. It never infers fading solely from fewer
+The compact reporter Packet includes aggregate counts, not full chronology or
+member lists. Unmapped exposures remain unavailable. It never infers fading solely from fewer
 Bottoms or starts a parallel theme lifecycle state machine.
 
 ## Private configuration / cutover
@@ -84,8 +85,8 @@ repeat. It cannot be claimed exactly-once without a delivery-system transaction.
 The standalone `state_cli ack` is for maintenance only under scanner serialization;
 ordinary ChatGPT reporting uses the separate Delivered IDs receipt property.
 
-Packets carry per-timeframe timestamps, numeric bands/EMA values, availability and
-indicator validation. An unsuccessful scanner run does not publish a fresh packet;
+Packets carry per-timeframe timestamps, pre-rendered ladders, availability and
+indicator validation. Numeric snapshots remain in Engine State. An unsuccessful scanner run does not publish a fresh packet;
 the thin reporter must flag stale packets rather than silently use old evidence.
 Pending events remain until acknowledged, including events older than the rolling
 theme window. Publish failures are retried without losing the durable outbox.
@@ -139,14 +140,45 @@ message; this is still not a platform transaction or exactly-once guarantee.
 
 ## Bounded delivery and unknown message times (2026-10-07)
 
-Packet now selects an oldest-first prefix of at most 25 pending items and fits the
-complete payload, including coverage and operational diagnostics, within 175,000
+Packet selects an oldest-first prefix of at most 25 pending items and fits the
+complete payload, including coverage and operational diagnostics, within 12,000
 characters. `batch` gives total/included/remaining counts. `report_items` supplies
 one deterministic line per selected ID. Unselected items remain in Engine State;
 only acknowledged IDs leave pending. A retry can refresh structures but never
 consumes an item. A single item that cannot fit fails explicitly. This replaces
 the previous unbounded all-pending Packet; no date cutoff or automatic deletion
 is introduced. Theme evidence still uses its own labelled rolling window.
+
+### Compact reporter readback (Packet version 2)
+
+The earlier 175,000-character bound addressed Notion publication, not the smaller
+ChatGPT connector response budget. Version 2 uses a conservative 12,000-character
+read budget. This is not a measured connector limit or a guarantee of complete
+tool output; an actual scheduled-task read/report/receipt round trip is required.
+
+`report_items` is the sole event list, with id, kind and the complete deterministic
+line. Duplicate raw_signals/new_moves/state_changes arrays are removed. The full
+pending records, including source event IDs and all original event metadata,
+remain in Engine State. Only acknowledged IDs leave pending; reducing the batch
+never truncates an item line or consumes an unreported event.
+
+Current structure context carries timestamp, confirmed_at, value_unit and the
+same deterministic ladder rendered from the confirmed snapshot; full numeric
+snapshots are omitted. Coverage retains status, checked_at, expected_latest,
+actual_latest and missing_count. Theme context retains counts, highest timeframe,
+exposure breadth and its timestamp window, without long member lists or chronology.
+The Packet includes at most five affected ticker contexts, five data-gap records,
+five operational-error records and two themes. `context_omitted` explicitly counts
+additional contextual records. These are not omitted report items, and diagnostics
+must not be presented as exhaustive when the corresponding count is nonzero.
+
+`packet_end` is the final JSON field and repeats packet_id. Before producing a
+Receipt, the reporter must read complete delivery fields, verify this marker,
+match unique report_items IDs to acknowledgement_ids in order, and check their
+count against batch.included. A marker or count alone proves no item coverage.
+Truncated delivery fields still fail closed. Missing optional structure context
+is labelled unavailable and does not block a complete signal-only report. The
+marker is a read boundary, not a snapshot hash or platform delivery proof.
 
 Receipt objects may now explicitly contain `delivered_at: null` together with
 `delivery_evidence: "prior_complete_report"`. The reporter must have actually

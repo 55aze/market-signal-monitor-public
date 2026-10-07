@@ -119,7 +119,10 @@ class ReportingConsistencyTests(unittest.TestCase):
         self.assertEqual((raw['source_event_id'], raw['bar_at'], raw['price']),
                          ('raw-30m', e['timestamp'], 106.65))
         data = packet([first], now='2026-09-23T15:00:00Z', since='2026-09-22T00:00:00Z')
-        self.assertEqual(data['raw_signals'], [raw])
+        self.assertEqual(data['report_items'][0]['kind'], 'RAW_SIGNAL')
+        self.assertIn('TEST · 30m Sell · 106.65 Price', data['report_items'][0]['line'])
+        self.assertIn('bar_at=' + raw['bar_at'], data['report_items'][0]['line'])
+        self.assertIn('confirmed_at=' + raw['confirmed_at'], data['report_items'][0]['line'])
         self.assertEqual(data['acknowledgement_ids'], [raw['id']])
         self.assertEqual(data['affected_states'], [])
         self.assertEqual(process_ticker(first, {}, [e], '2026-09-23T16:00:00Z')['pending'],
