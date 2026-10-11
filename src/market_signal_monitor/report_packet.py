@@ -89,10 +89,10 @@ def theme_evidence(states, membership, exposure, since, now):
     return result
 
 
-# A conservative reporter read budget, not Notion's much larger storage limit.
-# Connector readback still needs an actual scheduled-task validation.
-MAX_PACKET_CHARS = 12000
-MAX_BATCH_ITEMS = 25
+# Keep delivery bounded, but large enough to drain ordinary backlogs in one run.
+# SQL readback is the fallback when a normal page fetch truncates a large Packet.
+MAX_PACKET_CHARS = 50000
+MAX_BATCH_ITEMS = 100
 MAX_CONTEXT_TICKERS = 5
 MAX_DIAGNOSTIC_ITEMS = 5
 MAX_REPORT_THEMES = 2
