@@ -176,7 +176,9 @@ class PacketBatchTests(unittest.TestCase):
         first = packet(states, now=NOW, since=SINCE)
         states[0]['pending'].append(dict(id='new', ticker='TEST', kind='OPPORTUNITY', at=NOW))
         second = packet(states, now=NOW, since=SINCE)
-        self.assertEqual(first['acknowledgement_ids'], second['acknowledgement_ids'])
+        self.assertEqual(second['acknowledgement_ids'][:len(first['acknowledgement_ids'])],
+                         first['acknowledgement_ids'])
+        self.assertEqual(second['acknowledgement_ids'][-1], 'new')
 
     def test_unknown_timestamp_needs_explicit_complete_report_evidence(self):
         value = dict(packet_id=identity('packet', ['a']), item_ids=['a'], delivered_at=None)
