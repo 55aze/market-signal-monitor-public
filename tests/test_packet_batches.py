@@ -6,7 +6,7 @@ from unittest.mock import Mock
 from market_signal_monitor.notion import Notion, NotionHTTPError
 from market_signal_monitor.report_packet import (
     packet, publish_packet, delivery_receipt, PacketBudgetError, PacketSerializationError,
-    MAX_PACKET_CHARS,
+    MAX_PACKET_CHARS, MAX_BATCH_ITEMS,
 )
 from market_signal_monitor.state_engine import seed, acknowledge, identity
 
@@ -53,10 +53,10 @@ class PacketBatchTests(unittest.TestCase):
         data = packet(states, now=NOW, since=SINCE, membership={'TEST': ['Theme']},
                       exposure={'TEST': 'one-exposure'}, operational_errors=[], coverage='complete')
         payload = json.dumps(data, ensure_ascii=False, separators=(',', ':'))
-        self.assertLessEqual(len(payload), 12000, 'Stored Packet still exceeds the reporter read budget')
+        self.assertLessEqual(len(payload), MAX_PACKET_CHARS, 'Stored Packet still exceeds the reporter read budget')
         self.assertEqual(data['version'], 2)
-        self.assertEqual(data['batch']['included'], 25)
-        self.assertEqual(data['batch']['remaining'], 258)
+        self.assertEqual(data['batch']['included'], MAX_BATCH_ITEMS)
+        self.assertEqual(data['batch']['remaining'], 283 - MAX_BATCH_ITEMS)
         ids = data['acknowledgement_ids']
         self.assertEqual(ids, [item['id'] for item in data['report_items']])
         self.assertEqual(data['packet_id'], identity('packet', sorted(ids)))
@@ -86,7 +86,7 @@ class PacketBatchTests(unittest.TestCase):
             retry = packet(list(reversed(states)), now=NOW, since=SINCE)
             self.assertEqual(data, retry)
             ids = data['acknowledgement_ids']
-            self.assertLessEqual(len(ids), 25)
+            self.assertLessEqual(len(ids), MAX_BATCH_ITEMS)
             self.assertFalse(consumed.intersection(ids))
             self.assertEqual(ids, [i['id'] for i in data['report_items']])
             self.assertTrue(all(item['kind'] == 'RAW_SIGNAL' for item in data['report_items']))
@@ -125,7 +125,7 @@ class PacketBatchTests(unittest.TestCase):
         data = packet(states, now=NOW, since=SINCE, membership=membership,
                       operational_errors=errors, coverage='partial')
         self.assertGreater(data['batch']['included'], 0)
-        self.assertLessEqual(len(json.dumps(data, ensure_ascii=False, separators=(',', ':'))), 12000)
+        self.assertLessEqual(len(json.dumps(data, ensure_ascii=False, separators=(',', ':'))), MAX_PACKET_CHARS)
         self.assertEqual(len(data['affected_states']), 5)
         self.assertEqual(len(data['data_gaps']), 5)
         self.assertEqual(len(data['operational_errors']), 5)
