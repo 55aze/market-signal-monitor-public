@@ -135,12 +135,16 @@ def _report_line(event):
 
 def packet(states, *, now, since, membership=None, exposure=None,
            max_items=MAX_BATCH_ITEMS, max_chars=MAX_PACKET_CHARS,
-           operational_errors=None, coverage=None):
+           operational_errors=None, coverage=None, signal_report=False, instruments=None):
     """Publish an oldest-first prefix; only acknowledgement consumes the outbox."""
     if type(max_items) is not int or max_items < 1 or type(max_chars) is not int or not 0 < max_chars <= MAX_PACKET_CHARS:
         raise ValueError('Invalid packet budget')
-    events = sorted([e for s in states for e in s['pending']],
+    events = sorted([e for s in states for e in s['pending']
+                     if not signal_report or e['kind'] == 'RAW_SIGNAL'],
                     key=lambda e: (stamp(e['at']), e['id']))
+    if signal_report:
+        from .report_view import watch_context
+        watch = watch_context(states, now, instruments or [])
     # Bounded work: at most max_items candidates. Rebuild all associated context
     # for each prefix; never omit an event while acknowledging its ID.
     for count in range(min(len(events), max_items), -1, -1):
@@ -148,6 +152,18 @@ def packet(states, *, now, since, membership=None, exposure=None,
             break
         data = _packet(states, events[:count], now=now, since=since,
                        membership=membership, exposure=exposure)
+        if signal_report:
+            data['presentation'] = 'signals-and-current-structure-v1'
+            data['watch_context'] = watch
+            data['internal_record_count'] = sum(e['kind'] != 'RAW_SIGNAL' for s in states for e in s['pending'])
+            data['report_items'] = [{**item, **{k:e.get(k) for k in (
+                'ticker', 'origin_tf', 'signal', 'price', 'value_unit', 'bar_at',
+                'confirmed_at', 'market_timezone')}} for item, e in zip(data['report_items'], events[:count])]
+            data['affected_states'] = []
+            data['themes'] = []
+            data['coverage_snapshot'] = {}
+            data['context_omitted']['affected_states'] = 0
+            data['context_omitted']['themes'] = 0
         data['batch'] = dict(total_pending=len(events), included=count,
                              remaining=len(events) - count, order='oldest_first')
         if operational_errors is not None:

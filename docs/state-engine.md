@@ -201,3 +201,29 @@ phase/code/type and HTTP status where available. Private payloads and request
 paths stay out of the public summary. Production recovery also requires applying
 the updated reporter prompt and validating actual report/receipt consumption;
 a local test or a green scanner alone is not an end-to-end delivery check.
+
+## Signal-first reporting (2026-10-16)
+
+Production scanner now calls `packet(..., signal_report=True)` and emits
+`presentation=signals-and-current-structure-v1` within the existing v2 envelope.
+Only RAW_SIGNAL records enter report_items/batch/acknowledgement_ids. Other
+pending records remain intact in durable Engine State for internal audit; they
+are excluded from the delivery queue, not falsely marked delivered. Lifecycle
+computation remains unchanged. Legacy packet callers remain supported.
+
+`watch_context` selects dated signals in a 14-day confirmation window, or three
+unique 30m Bottom bars in 48 hours. It uses lineage plus retained raw outbox and
+delivered records, deduplicated by timeframe/direction/bar. It never treats an
+imported highest-TF label as dated evidence. All qualifying tickers and all four
+TFs are included independently of this batch's affected tickers. Context is not
+silently truncated to fit: budget failure preserves raw pending signals.
+
+Each cell separates latest confirmed structure (bar_at, confirmed_at, freshness)
+from latest recent signals per direction. Freshness=current requires current
+coverage and snapshot bar time matching expected_latest. Missing/old structure
+cannot inherit freshness merely because a new packet was generated. Group dates
+use each instrument's market timezone and highest-window-TF signal bar date.
+
+The reporter's display, color/line-break, grouping, summary and migration rules
+are in signal-report-format.md. No scanner cadence, formula, lifecycle state or
+source signal records are modified by this reporting change.
