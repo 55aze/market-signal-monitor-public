@@ -449,7 +449,8 @@ def run(config, *, mode="dry-run", since=None, selected=None, limit=None,
                               since=(packet_now - window).isoformat(),
                               membership=config.get("theme_membership"),
                               exposure=config.get("exposure_groups"),
-                              operational_errors=operational_errors, coverage=coverage)
+                              operational_errors=operational_errors, coverage=coverage,
+                              signal_report=True, instruments=config["instruments"])
                 report['packet_diagnostics'] = packet_diagnostics(data)
                 packet_phase = 'publish'
                 publish_packet(client, engine_config["report_page"], data)
