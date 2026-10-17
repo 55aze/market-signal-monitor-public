@@ -14,17 +14,20 @@ _TREASURY_YIELD_IDS = {"US02Y", "US05Y", "US10Y", "US30Y"}
 
 def policy_for(instrument):
     policy = instrument.get("confirmation")
+    if (instrument.get('exchange'), instrument.get('symbol')) in {('TVC', 'DXY'), ('OANDA', 'XAUUSD')}:
+        return {'type': 'provider_week', 'timezone': 'America/New_York',
+                'feed': instrument['symbol'], 'id': instrument['symbol'].lower() + '-provider-week-v1'}
     if instrument.get("id") in _TREASURY_YIELD_IDS:
         # Real TVC bars use different anchors by timeframe. The September audit
         # showed 30m at 20:00->17:30 New York and 4H/1D/1W at 19:00 anchors.
         # TVC may omit an illiquid prefix at a session reopen while retaining
         # later aligned bars; freshness handles that prefix separately.
-        return {"type": "overnight_calendar", "calendar": "NYSE",
+        return {"type": "overnight_calendar", "calendar": "SIFMA_US",
                 "timezone": "America/New_York",
                 "session_open_by_tf": {"30m": "20:00", "4H": "19:00", "1D": "19:00", "1W": "19:00"},
                 "session_close_by_tf": {"30m": "17:30", "4H": "19:00", "1D": "19:00", "1W": "19:00"},
                 "optional_session_open_prefix": ["30m", "4H"],
-                "id": "tvc-us-yield-session-v2"}
+                "id": "tvc-us-yield-session-v3"}
     if instrument.get("id") == "JPYUSD":
         return {"type": "fixed_week", "timezone": "UTC",
                 "week_open_weekday": 6, "week_open": "22:00",
@@ -142,7 +145,11 @@ def _calendar_times(bars, policy, timeframe, strict_since):
 
 
 def _overnight_sessions(policy, start, end, timeframe):
-    """Provider sessions keyed by the following NYSE trading date."""
+    """Provider sessions keyed by the following market trading date.
+
+    Use the market's full-day holidays while retaining the audited provider
+    bar anchors (SIFMA cash-market early closes are not TVC feed closes).
+    """
     tz = policy["timezone"]
     opening_hhmm = policy["session_open_by_tf"][timeframe]
     closing_hhmm = policy["session_close_by_tf"][timeframe]
@@ -186,6 +193,70 @@ def _overnight_times(bars, policy, timeframe, strict_since):
         if not valid and stamp >= strict_since:
             raise ValueError(f"Bar does not match overnight provider session anchor: {stamp}")
         result.append(closing if valid else pd.NaT)
+    return result
+
+
+def _provider_week_sessions(policy, start, end, timeframe):
+    """Native TV grid audited 2026-10-16; bar labels differ from quote opens.
+
+    This is a regular-week grid, not a certification of exceptional holidays.
+    Missing holiday bars remain visible gaps until a feed-specific exception is
+    verified; never infer a holiday from absence of data.
+    """
+    tz = policy['timezone']
+    sessions = []
+    for day in pd.bdate_range(start, end):
+        d = day.date()
+        if timeframe == '30m':
+            if policy['feed'] == 'DXY':
+                op = '18:00' if day.weekday() == 0 else '19:30'
+                cl = '17:00' if day.weekday() == 4 else '18:30'
+            else:
+                op, cl = '18:00', '17:00'
+        elif policy['feed'] == 'DXY':
+            op = '17:00' if day.weekday() == 0 else '19:00'
+            cl = '17:00' if day.weekday() == 4 else '19:00'
+        else:
+            op, cl = '17:00', '17:00'
+        sessions.append((d, _wall(d-pd.Timedelta(days=1), op, tz).tz_convert('UTC'),
+                         _wall(d, cl, tz).tz_convert('UTC')))
+    return sessions
+
+
+def provider_week_grid(policy, timeframe, start, end):
+    sessions = _provider_week_sessions(policy, start, end, timeframe)
+    if timeframe == '1W':
+        weeks = {}
+        for d, opening, closing in sessions:
+            monday = d - pd.Timedelta(days=pd.Timestamp(d).weekday())
+            weeks.setdefault(monday, [opening, closing])[1] = closing
+        return list(weeks.values())
+    grid = []
+    for _, opening, closing in sessions:
+        if timeframe == '1D':
+            grid.append((opening, closing))
+        else:
+            cursor = opening
+            while cursor < closing:
+                grid.append((cursor, min(cursor + _duration(timeframe), closing)))
+                cursor += _duration(timeframe)
+    return grid
+
+
+def _provider_week_times(bars, policy, timeframe, strict_since):
+    local = bars.index.tz_convert(policy['timezone'])
+    grid = dict(provider_week_grid(policy, timeframe,
+        (local.min()-pd.Timedelta(days=8)).date(), (local.max()+pd.Timedelta(days=8)).date()))
+    result = []
+    for i, stamp in enumerate(bars.index):
+        close = grid.get(stamp, pd.NaT)
+        # Preserve successor evidence for historical holiday/legacy labels. It
+        # cannot certify a latest bar or declare gap coverage complete.
+        if pd.isna(close) and i + 1 < len(bars):
+            close = bars.index[i+1]
+        if pd.isna(close) and stamp >= strict_since:
+            raise ValueError(f'Unrecognized latest provider bar anchor: {stamp}')
+        result.append(close)
     return result
 
 
@@ -235,6 +306,8 @@ def confirmation_times(bars, instrument, timeframe, strict_since=None):
         raise ValueError("strict_since must be timezone-aware")
     if policy["type"] == "continuous_interval":
         return [stamp + _duration(timeframe) for stamp in bars.index]
+    if policy['type'] == 'provider_week':
+        return _provider_week_times(bars, policy, timeframe, strict_since)
     if policy["type"] == "exchange_calendar":
         return _calendar_times(bars, policy, timeframe, strict_since)
     if policy["type"] == "overnight_calendar":

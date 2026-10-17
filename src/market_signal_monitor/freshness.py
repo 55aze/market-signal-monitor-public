@@ -1,7 +1,7 @@
 """Expected-bar reconciliation for live scanner freshness and gap detection."""
 import pandas as pd
 
-from .confirmation import policy_for, _overnight_sessions, _fixed_week_bounds
+from .confirmation import policy_for, _overnight_sessions, _fixed_week_bounds, provider_week_grid
 
 
 _DURATIONS = {
@@ -175,6 +175,12 @@ def _expected(instrument, timeframe, start_exclusive, now):
     policy = policy_for(instrument)
     if policy is None:
         return None, "no_close_policy"
+    if policy['type'] == 'provider_week':
+        start_exclusive, now = _utc(start_exclusive), _utc(now)
+        grid = provider_week_grid(policy, timeframe,
+            (start_exclusive.tz_convert(policy['timezone'])-pd.Timedelta(days=8)).date(),
+            (now.tz_convert(policy['timezone'])+pd.Timedelta(days=8)).date())
+        return sorted({op for op, cl in grid if op > start_exclusive and cl <= now}), 'provider_week'
     if policy["type"] == "exchange_calendar":
         return _calendar_expected(policy, timeframe, start_exclusive, now), "exchange_calendar"
     if policy["type"] == "overnight_calendar":

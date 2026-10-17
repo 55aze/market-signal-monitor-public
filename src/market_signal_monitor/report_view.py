@@ -18,7 +18,7 @@ def compact_structure(tf, structure):
 
 def watch_context(states, now, instruments):
     cutoff = stamp(now)
-    metadata = {i.get('notion_ticker', i['id']): i for i in instruments}
+    metadata = {key: i for i in instruments for key in (i['id'], i.get('notion_ticker', i['id']))}
     rows = []
     for s in states:
         ticker = s['ticker']
@@ -64,9 +64,12 @@ def watch_context(states, now, instruments):
                     latest.append({k:e.get(k) for k in ('signal', 'timestamp', 'confirmation_at')})
             latest.sort(key=lambda e: stamp(e['confirmation_at']), reverse=True)
             cells[tf] = dict(structure=compact_structure(tf, structure),
+                stream=(instrument['id'] + ':' + tf) if instrument else None,
                 bar_at=actual, confirmed_at=structure.get('confirmed_at'),
                 freshness='current' if current else 'unverified_or_stale', signals=latest)
         rows.append(dict(ticker=ticker, market_timezone=zone, group_date=anchor_date,
+            instrument_id=instrument['id'] if instrument else None,
+            provider_symbol=instrument.get('symbol') if instrument else None,
             highest_signal_tf=anchor['timeframe'], anchor_confirmed_at=anchor['confirmation_at'],
             bottom_30m_48h=len(cluster), cells=cells))
     rows.sort(key=lambda r: (r['group_date'] or '', TF[r['highest_signal_tf']],

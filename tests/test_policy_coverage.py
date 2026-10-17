@@ -71,7 +71,7 @@ class PolicyCoverageTests(unittest.TestCase):
         for name in ['US02Y', 'US05Y', 'US10Y', 'US30Y']:
             instrument = self.instruments[name]
             self.assertNotIn('confirmation', instrument)
-            self.assertEqual(policy_for(instrument)['id'], 'tvc-us-yield-session-v2')
+            self.assertEqual(policy_for(instrument)['id'], 'tvc-us-yield-session-v3')
             cases = {
                 '30m': ('2026-09-11T21:00Z', '2026-09-11T21:30Z'),
                 '4H': ('2026-09-11T19:00Z', '2026-09-11T23:00Z'),
@@ -109,7 +109,7 @@ class PolicyCoverageTests(unittest.TestCase):
         self.assertEqual(status['missing_bar_opens'], [])
 
     def test_remaining_special_feeds_stay_unclassified(self):
-        for name in ['VIX', 'DXY', 'XAUUSD']:
+        for name in ['VIX']:
             self.assertIsNone(policy_for(self.instruments[name]), name)
         index = pd.to_datetime(['2026-09-11T00:00Z'], utc=True)
         status = assess_freshness(index, self.instruments['BRENT'], '4H',
