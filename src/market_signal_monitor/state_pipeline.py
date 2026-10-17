@@ -56,6 +56,15 @@ def _process_ticker(state, batches, events, now, rules=None):
     for tf, batch in batches.items():
         if batch.get('coverage'):
             s.setdefault('coverage', {})[tf] = deepcopy(batch['coverage'])
+        # Descriptive snapshots are independent of lifecycle replay. A sibling
+        # error or late dominant signal must not freeze healthy TF structures.
+        rows = batch.get('bars', [])
+        if rows and not batch.get('error'):
+            last = rows[-1]
+            old = s.get('structures', {}).get(tf, {}).get('timestamp')
+            if old is None or stamp(last['timestamp']) >= stamp(old):
+                s.setdefault('structures', {})[tf] = {
+                    k: last[k] for k in ('timestamp', 'confirmed_at', 'snapshot', 'value_unit')}
     if 'Late dominant signal requires explicit chronological replay' in s['uncertainty']:
         return s
     # A failure in any stream can hide a dominant opposite signal. Freeze ticker
@@ -70,11 +79,6 @@ def _process_ticker(state, batches, events, now, rules=None):
     if failures:
         s['uncertainty'] = ['Unavailable stream(s): ' + ', '.join(sorted(failures))]
         return s
-    for tf, batch in batches.items():
-        rows = batch.get('bars', [])
-        if rows:
-            last = rows[-1]
-            s['structures'][tf] = {k: last[k] for k in ('timestamp', 'confirmed_at', 'snapshot', 'value_unit')}
     if origin in TF and s['last_bar']:
         rows = batches.get(origin, {}).get('bars', [])
         if rows and pd.Timestamp(s['last_bar']) not in {pd.Timestamp(b['timestamp']) for b in rows}:
