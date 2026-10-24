@@ -1,0 +1,107 @@
+[
+  {
+    "case_id": 1,
+    "emit_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "status": "REPORT"
+  },
+  {
+    "case_id": 2,
+    "emit_ids": [],
+    "status": "SILENT"
+  },
+  {
+    "case_id": 3,
+    "emit_ids": [],
+    "status": "SILENT"
+  },
+  {
+    "case_id": 4,
+    "emit_ids": [],
+    "status": "ACK_PENDING"
+  },
+  {
+    "case_id": 5,
+    "emit_ids": [
+      "a963541268736b1c3b20dabf"
+    ],
+    "status": "REPORT"
+  },
+  {
+    "case_id": 6,
+    "emit_ids": [],
+    "status": "SILENT"
+  },
+  {
+    "case_id": 7,
+    "emit_ids": [],
+    "status": "RECEIPT_READ_FAILED"
+  },
+  {
+    "case_id": 8,
+    "emit_ids": [],
+    "status": "RECEIPT_READ_FAILED"
+  },
+  {
+    "case_id": 9,
+    "emit_ids": [],
+    "status": "RECEIPT_READ_FAILED"
+  },
+  {
+    "case_id": 10,
+    "emit_ids": [],
+    "status": "READ_FAILED"
+  },
+  {
+    "case_id": 11,
+    "emit_ids": [],
+    "status": "READ_FAILED"
+  },
+  {
+    "case_id": 12,
+    "emit_ids": [],
+    "status": "DELIVERY_UNCONFIRMED"
+  },
+  {
+    "case_id": 13,
+    "emit_ids": [],
+    "status": "WRITE_FAILED"
+  },
+  {
+    "case_id": 14,
+    "emit_ids": [],
+    "status": "SILENT"
+  },
+  {
+    "case_id": 15,
+    "emit_ids": [],
+    "status": "DELIVERY_UNCONFIRMED"
+  },
+  {
+    "case_id": 16,
+    "emit_ids": [],
+    "status": "SILENT"
+  },
+  {
+    "case_id": 17,
+    "emit_ids": [],
+    "status": "SILENT"
+  },
+  {
+    "case_id": 18,
+    "emit_ids": [],
+    "status": "SILENT"
+  },
+  {
+    "case_id": 19,
+    "emit_ids": [],
+    "status": "SILENT"
+  },
+  {
+    "case_id": 20,
+    "emit_ids": [],
+    "status": "OPERATIONAL"
+  }
+]
