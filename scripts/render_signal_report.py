@@ -31,6 +31,7 @@ def relative(value, as_of, zone):
         if seconds < 3600: return f'{int(seconds//60)}分钟前'
         if seconds < 86400: return f'{int(seconds//3600)}小时前'
         if seconds < 604800: return f'{int(seconds//86400)}天前'
+        if seconds < 604800: return f'{int(seconds//86400)}天前'
         if not zone or zone == 'unknown': return '时区待核'
         local = dt.astimezone(ZoneInfo(zone))
         return local.strftime('%Y/%m/%d' if local.year != now.year else '%m/%d')
@@ -147,7 +148,7 @@ def render(packet,plan,*,context_only=False):
             output.append('</section>')
         output.append('</section>')
     output.append('</section><footer id="report-end">结构区结束 · 全部已载入；待核单元格不代表当前状态已验证。</footer></main>')
-    payload=json.dumps({'packet':packet,'plan':plan},ensure_ascii=False,allow_nan=False,separators=(',',':')).replace('<','\u003c').replace('>','\u003e').replace('&','\u0026')
+    payload=json.dumps({'packet':packet,'plan':plan},ensure_ascii=False,allow_nan=False,separators=(',',':')).replace('<',chr(92)+'u003c').replace('>',chr(92)+'u003e').replace('&',chr(92)+'u0026')
     output.append(f'<script type="application/json" id="report-data">{payload}</script><script>{JS}</script></body></html>')
     return '\n'.join(output)
 
