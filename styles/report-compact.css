@@ -1,0 +1,38 @@
+/* Presentation-only overlay for the pinned static renderer. */
+body{font-size:14px;line-height:1.4}
+main{padding:10px}
+h1{font-size:19px;margin:0 0 4px}
+h2{font-size:16px;margin:18px 0 5px}
+h3{font-size:13px;margin:12px 0 3px}
+h4{font-size:13px;margin:8px 0 3px}
+.jump{padding:8px 10px;margin:5px 0;min-height:44px;display:inline-flex;align-items:center}
+.filters{gap:6px;margin:6px 0}
+.filters label{font-size:11px;gap:2px}
+.count{font-size:12px;margin:5px 0}
+.column-head,.ticker-block{grid-template-columns:65px repeat(4,minmax(0,1fr))}
+.ticker{padding:6px;font-size:14px}
+.tf-cell{padding:5px 6px}
+.ladder{font-size:14px;line-height:1.5}
+.signal{font-size:13px;line-height:1.45}
+.quality{font-size:11px;margin-left:4px}
+.event{padding:6px 4px;gap:6px}
+footer{padding:10px 0 4px}
+.ticker-block,.tf-cell,.cell-content,.ladder{height:auto;max-height:none;overflow:visible}
+#show-audit{width:20px;height:20px;min-height:20px;vertical-align:middle;accent-color:#526174}
+.audit-toggle-label{font-size:12px;min-height:44px;display:inline-flex;align-items:center;padding:0 7px;color:var(--muted);cursor:pointer}
+/* Only audit UI is optional. Core ladders, signal lines and freshness badges
+   are never hidden. The checkbox is a direct sibling before both sections. */
+#show-audit:not(:checked)~#events .audit,
+#show-audit:not(:checked)~#structures .audit{display:none}
+#show-audit:not(:checked)~#structures .cell-time{font-size:0}
+#show-audit:not(:checked)~#structures .cell-time .quality{font-size:11px}
+@media(max-width:850px){
+ main{padding:8px}
+ .ticker-block{margin:0 0 6px;border-radius:5px}
+ .ticker{padding:5px 8px;border-radius:5px 5px 0 0}
+ .tf-cell{grid-template-columns:30px minmax(0,1fr);gap:6px;padding:5px 8px}
+ .tf-label{font-size:12px;line-height:1.6}
+ .ladder{font-size:14px}
+ .event{font-size:13px;grid-template-columns:64px 36px 42px minmax(50px,1fr)}
+ .event .event-time{font-size:12px}
+}
