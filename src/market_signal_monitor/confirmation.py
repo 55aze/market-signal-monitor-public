@@ -76,7 +76,10 @@ def _duration(timeframe):
 
 def _wall(day, hhmm, timezone):
     hour, minute = map(int, hhmm.split(":"))
-    return pd.Timestamp(day).tz_localize(timezone) + pd.Timedelta(hours=hour, minutes=minute)
+    # Construct local wall time before localization: elapsed hours from midnight
+    # cross DST transitions and shift evening session anchors by an hour.
+    wall = pd.Timestamp(day) + pd.Timedelta(hours=hour, minutes=minute)
+    return wall.tz_localize(timezone)
 
 
 def _calendar_schedule(policy, start, end):
