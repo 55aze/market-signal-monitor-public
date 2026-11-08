@@ -1,0 +1,1066 @@
+[
+  {
+    "case_id": 1,
+    "name": "first authorized",
+    "now": "2026-10-18T06:10:00Z",
+    "packet": {
+      "version": 2,
+      "presentation": "signals-and-current-structure-v1",
+      "as_of": "2026-10-18T06:00:00Z",
+      "packet_id": "a09123215b05ed081a503352",
+      "packet_end": "a09123215b05ed081a503352",
+      "batch": {
+        "included": 2
+      },
+      "acknowledgement_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "report_items": [
+        {
+          "id": "465f8744705dc6cd4470d974",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 420,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        },
+        {
+          "id": "47e65633fdbeed06c16da8db",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 421,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        }
+      ]
+    },
+    "persisted_receipt": null,
+    "receipt_read": "success",
+    "prior_report": null,
+    "prior_history": "unavailable",
+    "first_delivery_authorized": true,
+    "ack_write": "not_attempted",
+    "operational_changes": false
+  },
+  {
+    "case_id": 2,
+    "name": "persisted all; new chat",
+    "now": "2026-10-18T06:10:00Z",
+    "packet": {
+      "version": 2,
+      "presentation": "signals-and-current-structure-v1",
+      "as_of": "2026-10-18T06:00:00Z",
+      "packet_id": "a09123215b05ed081a503352",
+      "packet_end": "a09123215b05ed081a503352",
+      "batch": {
+        "included": 2
+      },
+      "acknowledgement_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "report_items": [
+        {
+          "id": "465f8744705dc6cd4470d974",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 420,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        },
+        {
+          "id": "47e65633fdbeed06c16da8db",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 421,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        }
+      ]
+    },
+    "persisted_receipt": {
+      "packet_id": "a09123215b05ed081a503352",
+      "item_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "delivered_at": null,
+      "delivery_evidence": "prior_complete_report"
+    },
+    "receipt_read": "success",
+    "prior_report": null,
+    "prior_history": "unavailable",
+    "first_delivery_authorized": false,
+    "ack_write": "not_attempted",
+    "operational_changes": false
+  },
+  {
+    "case_id": 3,
+    "name": "reordered persisted IDs",
+    "now": "2026-10-18T06:10:00Z",
+    "packet": {
+      "version": 2,
+      "presentation": "signals-and-current-structure-v1",
+      "as_of": "2026-10-18T06:00:00Z",
+      "packet_id": "a09123215b05ed081a503352",
+      "packet_end": "a09123215b05ed081a503352",
+      "batch": {
+        "included": 2
+      },
+      "acknowledgement_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "report_items": [
+        {
+          "id": "465f8744705dc6cd4470d974",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 420,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        },
+        {
+          "id": "47e65633fdbeed06c16da8db",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 421,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        }
+      ]
+    },
+    "persisted_receipt": {
+      "packet_id": "a09123215b05ed081a503352",
+      "item_ids": [
+        "47e65633fdbeed06c16da8db",
+        "465f8744705dc6cd4470d974"
+      ],
+      "delivered_at": null,
+      "delivery_evidence": "prior_complete_report"
+    },
+    "receipt_read": "success",
+    "prior_report": null,
+    "prior_history": "unavailable",
+    "first_delivery_authorized": false,
+    "ack_write": "not_attempted",
+    "operational_changes": false
+  },
+  {
+    "case_id": 4,
+    "name": "mixed acknowledged and new",
+    "now": "2026-10-18T06:10:00Z",
+    "packet": {
+      "version": 2,
+      "presentation": "signals-and-current-structure-v1",
+      "as_of": "2026-10-18T06:00:00Z",
+      "packet_id": "77bc721d7953dcd1bce68420",
+      "packet_end": "77bc721d7953dcd1bce68420",
+      "batch": {
+        "included": 3
+      },
+      "acknowledgement_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db",
+        "a963541268736b1c3b20dabf"
+      ],
+      "report_items": [
+        {
+          "id": "465f8744705dc6cd4470d974",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 420,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        },
+        {
+          "id": "47e65633fdbeed06c16da8db",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 421,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        },
+        {
+          "id": "a963541268736b1c3b20dabf",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 422,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        }
+      ]
+    },
+    "persisted_receipt": {
+      "packet_id": "a09123215b05ed081a503352",
+      "item_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "delivered_at": null,
+      "delivery_evidence": "prior_complete_report"
+    },
+    "receipt_read": "success",
+    "prior_report": null,
+    "prior_history": "unavailable",
+    "first_delivery_authorized": false,
+    "ack_write": "not_attempted",
+    "operational_changes": false
+  },
+  {
+    "case_id": 5,
+    "name": "new only after consumption",
+    "now": "2026-10-18T06:10:00Z",
+    "packet": {
+      "version": 2,
+      "presentation": "signals-and-current-structure-v1",
+      "as_of": "2026-10-18T06:00:00Z",
+      "packet_id": "68841259da74774afb792141",
+      "packet_end": "68841259da74774afb792141",
+      "batch": {
+        "included": 1
+      },
+      "acknowledgement_ids": [
+        "a963541268736b1c3b20dabf"
+      ],
+      "report_items": [
+        {
+          "id": "a963541268736b1c3b20dabf",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 420,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        }
+      ]
+    },
+    "persisted_receipt": {
+      "packet_id": "a09123215b05ed081a503352",
+      "item_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "delivered_at": null,
+      "delivery_evidence": "prior_complete_report"
+    },
+    "receipt_read": "success",
+    "prior_report": null,
+    "prior_history": "unavailable",
+    "first_delivery_authorized": false,
+    "ack_write": "not_attempted",
+    "operational_changes": false
+  },
+  {
+    "case_id": 6,
+    "name": "empty packet",
+    "now": "2026-10-18T06:10:00Z",
+    "packet": {
+      "version": 2,
+      "presentation": "signals-and-current-structure-v1",
+      "as_of": "2026-10-18T06:00:00Z",
+      "packet_id": "0229228fb2be592ba7ba13ef",
+      "packet_end": "0229228fb2be592ba7ba13ef",
+      "batch": {
+        "included": 0
+      },
+      "acknowledgement_ids": [],
+      "report_items": []
+    },
+    "persisted_receipt": {
+      "packet_id": "a09123215b05ed081a503352",
+      "item_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "delivered_at": null,
+      "delivery_evidence": "prior_complete_report"
+    },
+    "receipt_read": "success",
+    "prior_report": null,
+    "prior_history": "unavailable",
+    "first_delivery_authorized": false,
+    "ack_write": "not_attempted",
+    "operational_changes": false
+  },
+  {
+    "case_id": 7,
+    "name": "receipt network failure",
+    "now": "2026-10-18T06:10:00Z",
+    "packet": {
+      "version": 2,
+      "presentation": "signals-and-current-structure-v1",
+      "as_of": "2026-10-18T06:00:00Z",
+      "packet_id": "a09123215b05ed081a503352",
+      "packet_end": "a09123215b05ed081a503352",
+      "batch": {
+        "included": 2
+      },
+      "acknowledgement_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "report_items": [
+        {
+          "id": "465f8744705dc6cd4470d974",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 420,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        },
+        {
+          "id": "47e65633fdbeed06c16da8db",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 421,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        }
+      ]
+    },
+    "persisted_receipt": null,
+    "receipt_read": "network_error",
+    "prior_report": null,
+    "prior_history": "unavailable",
+    "first_delivery_authorized": false,
+    "ack_write": "not_attempted",
+    "operational_changes": false
+  },
+  {
+    "case_id": 8,
+    "name": "truncated receipt",
+    "now": "2026-10-18T06:10:00Z",
+    "packet": {
+      "version": 2,
+      "presentation": "signals-and-current-structure-v1",
+      "as_of": "2026-10-18T06:00:00Z",
+      "packet_id": "a09123215b05ed081a503352",
+      "packet_end": "a09123215b05ed081a503352",
+      "batch": {
+        "included": 2
+      },
+      "acknowledgement_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "report_items": [
+        {
+          "id": "465f8744705dc6cd4470d974",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 420,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        },
+        {
+          "id": "47e65633fdbeed06c16da8db",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 421,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        }
+      ]
+    },
+    "persisted_receipt": null,
+    "receipt_read": "truncated",
+    "prior_report": null,
+    "prior_history": "unavailable",
+    "first_delivery_authorized": false,
+    "ack_write": "not_attempted",
+    "operational_changes": false
+  },
+  {
+    "case_id": 9,
+    "name": "malformed receipt",
+    "now": "2026-10-18T06:10:00Z",
+    "packet": {
+      "version": 2,
+      "presentation": "signals-and-current-structure-v1",
+      "as_of": "2026-10-18T06:00:00Z",
+      "packet_id": "a09123215b05ed081a503352",
+      "packet_end": "a09123215b05ed081a503352",
+      "batch": {
+        "included": 2
+      },
+      "acknowledgement_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "report_items": [
+        {
+          "id": "465f8744705dc6cd4470d974",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 420,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        },
+        {
+          "id": "47e65633fdbeed06c16da8db",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 421,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        }
+      ]
+    },
+    "persisted_receipt": {
+      "packet_id": "wrong",
+      "item_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "delivered_at": null,
+      "delivery_evidence": "prior_complete_report"
+    },
+    "receipt_read": "success",
+    "prior_report": null,
+    "prior_history": "unavailable",
+    "first_delivery_authorized": false,
+    "ack_write": "not_attempted",
+    "operational_changes": false
+  },
+  {
+    "case_id": 10,
+    "name": "truncated packet despite acknowledged IDs",
+    "now": "2026-10-18T06:10:00Z",
+    "packet": {
+      "version": 2,
+      "presentation": "signals-and-current-structure-v1",
+      "as_of": "2026-10-18T06:00:00Z",
+      "packet_id": "a09123215b05ed081a503352",
+      "batch": {
+        "included": 2
+      },
+      "acknowledgement_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "report_items": [
+        {
+          "id": "465f8744705dc6cd4470d974",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 420,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        },
+        {
+          "id": "47e65633fdbeed06c16da8db",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 421,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        }
+      ]
+    },
+    "persisted_receipt": {
+      "packet_id": "a09123215b05ed081a503352",
+      "item_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "delivered_at": null,
+      "delivery_evidence": "prior_complete_report"
+    },
+    "receipt_read": "success",
+    "prior_report": null,
+    "prior_history": "unavailable",
+    "first_delivery_authorized": false,
+    "ack_write": "not_attempted",
+    "operational_changes": false
+  },
+  {
+    "case_id": 11,
+    "name": "duplicate packet IDs",
+    "now": "2026-10-18T06:10:00Z",
+    "packet": {
+      "version": 2,
+      "presentation": "signals-and-current-structure-v1",
+      "as_of": "2026-10-18T06:00:00Z",
+      "packet_id": "c6548521c995dd176d13d7cd",
+      "packet_end": "c6548521c995dd176d13d7cd",
+      "batch": {
+        "included": 2
+      },
+      "acknowledgement_ids": [
+        "465f8744705dc6cd4470d974",
+        "465f8744705dc6cd4470d974"
+      ],
+      "report_items": [
+        {
+          "id": "465f8744705dc6cd4470d974",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 420,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        },
+        {
+          "id": "465f8744705dc6cd4470d974",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 421,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        }
+      ]
+    },
+    "persisted_receipt": {
+      "packet_id": "e7d2eab961cff93f758403ca",
+      "item_ids": [
+        "465f8744705dc6cd4470d974"
+      ],
+      "delivered_at": null,
+      "delivery_evidence": "prior_complete_report"
+    },
+    "receipt_read": "success",
+    "prior_report": null,
+    "prior_history": "unavailable",
+    "first_delivery_authorized": false,
+    "ack_write": "not_attempted",
+    "operational_changes": false
+  },
+  {
+    "case_id": 12,
+    "name": "unreadable history and empty receipt",
+    "now": "2026-10-18T06:10:00Z",
+    "packet": {
+      "version": 2,
+      "presentation": "signals-and-current-structure-v1",
+      "as_of": "2026-10-18T06:00:00Z",
+      "packet_id": "a09123215b05ed081a503352",
+      "packet_end": "a09123215b05ed081a503352",
+      "batch": {
+        "included": 2
+      },
+      "acknowledgement_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "report_items": [
+        {
+          "id": "465f8744705dc6cd4470d974",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 420,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        },
+        {
+          "id": "47e65633fdbeed06c16da8db",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 421,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        }
+      ]
+    },
+    "persisted_receipt": null,
+    "receipt_read": "success",
+    "prior_report": null,
+    "prior_history": "unavailable",
+    "first_delivery_authorized": false,
+    "ack_write": "not_attempted",
+    "operational_changes": false
+  },
+  {
+    "case_id": 13,
+    "name": "complete prior; write fails",
+    "now": "2026-10-18T06:10:00Z",
+    "packet": {
+      "version": 2,
+      "presentation": "signals-and-current-structure-v1",
+      "as_of": "2026-10-18T06:00:00Z",
+      "packet_id": "a09123215b05ed081a503352",
+      "packet_end": "a09123215b05ed081a503352",
+      "batch": {
+        "included": 2
+      },
+      "acknowledgement_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "report_items": [
+        {
+          "id": "465f8744705dc6cd4470d974",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 420,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        },
+        {
+          "id": "47e65633fdbeed06c16da8db",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 421,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        }
+      ]
+    },
+    "persisted_receipt": null,
+    "receipt_read": "success",
+    "prior_report": {
+      "complete": true,
+      "visible_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "receipt_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "packet_id": "a09123215b05ed081a503352"
+    },
+    "prior_history": "readable",
+    "first_delivery_authorized": false,
+    "ack_write": "failed_after_retry",
+    "operational_changes": false
+  },
+  {
+    "case_id": 14,
+    "name": "complete prior; write verified",
+    "now": "2026-10-18T06:10:00Z",
+    "packet": {
+      "version": 2,
+      "presentation": "signals-and-current-structure-v1",
+      "as_of": "2026-10-18T06:00:00Z",
+      "packet_id": "a09123215b05ed081a503352",
+      "packet_end": "a09123215b05ed081a503352",
+      "batch": {
+        "included": 2
+      },
+      "acknowledgement_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "report_items": [
+        {
+          "id": "465f8744705dc6cd4470d974",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 420,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        },
+        {
+          "id": "47e65633fdbeed06c16da8db",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 421,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        }
+      ]
+    },
+    "persisted_receipt": {
+      "packet_id": "a09123215b05ed081a503352",
+      "item_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "delivered_at": null,
+      "delivery_evidence": "prior_complete_report"
+    },
+    "receipt_read": "success",
+    "prior_report": {
+      "complete": true,
+      "visible_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "receipt_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "packet_id": "a09123215b05ed081a503352"
+    },
+    "prior_history": "readable",
+    "first_delivery_authorized": false,
+    "ack_write": "verified",
+    "operational_changes": false
+  },
+  {
+    "case_id": 15,
+    "name": "receipt-only prior",
+    "now": "2026-10-18T06:10:00Z",
+    "packet": {
+      "version": 2,
+      "presentation": "signals-and-current-structure-v1",
+      "as_of": "2026-10-18T06:00:00Z",
+      "packet_id": "a09123215b05ed081a503352",
+      "packet_end": "a09123215b05ed081a503352",
+      "batch": {
+        "included": 2
+      },
+      "acknowledgement_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "report_items": [
+        {
+          "id": "465f8744705dc6cd4470d974",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 420,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        },
+        {
+          "id": "47e65633fdbeed06c16da8db",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 421,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        }
+      ]
+    },
+    "persisted_receipt": null,
+    "receipt_read": "success",
+    "prior_report": null,
+    "prior_history": "receipt_only",
+    "first_delivery_authorized": false,
+    "ack_write": "not_attempted",
+    "operational_changes": false
+  },
+  {
+    "case_id": 16,
+    "name": "old prior must not replace outstanding receipt",
+    "now": "2026-10-18T06:10:00Z",
+    "packet": {
+      "version": 2,
+      "presentation": "signals-and-current-structure-v1",
+      "as_of": "2026-10-18T06:00:00Z",
+      "packet_id": "a09123215b05ed081a503352",
+      "packet_end": "a09123215b05ed081a503352",
+      "batch": {
+        "included": 2
+      },
+      "acknowledgement_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "report_items": [
+        {
+          "id": "465f8744705dc6cd4470d974",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 420,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        },
+        {
+          "id": "47e65633fdbeed06c16da8db",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 421,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        }
+      ]
+    },
+    "persisted_receipt": {
+      "packet_id": "a09123215b05ed081a503352",
+      "item_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "delivered_at": null,
+      "delivery_evidence": "prior_complete_report"
+    },
+    "receipt_read": "success",
+    "prior_report": {
+      "complete": true,
+      "visible_ids": [
+        "a963541268736b1c3b20dabf"
+      ],
+      "receipt_ids": [
+        "a963541268736b1c3b20dabf"
+      ],
+      "packet_id": "68841259da74774afb792141"
+    },
+    "prior_history": "readable",
+    "first_delivery_authorized": false,
+    "ack_write": "not_attempted",
+    "operational_changes": false
+  },
+  {
+    "case_id": 17,
+    "name": "legacy array receipt",
+    "now": "2026-10-18T06:10:00Z",
+    "packet": {
+      "version": 2,
+      "presentation": "signals-and-current-structure-v1",
+      "as_of": "2026-10-18T06:00:00Z",
+      "packet_id": "a09123215b05ed081a503352",
+      "packet_end": "a09123215b05ed081a503352",
+      "batch": {
+        "included": 2
+      },
+      "acknowledgement_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "report_items": [
+        {
+          "id": "465f8744705dc6cd4470d974",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 420,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        },
+        {
+          "id": "47e65633fdbeed06c16da8db",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 421,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        }
+      ]
+    },
+    "persisted_receipt": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "receipt_read": "success",
+    "prior_report": null,
+    "prior_history": "unavailable",
+    "first_delivery_authorized": false,
+    "ack_write": "not_attempted",
+    "operational_changes": false
+  },
+  {
+    "case_id": 18,
+    "name": "legacy CSV receipt",
+    "now": "2026-10-18T06:10:00Z",
+    "packet": {
+      "version": 2,
+      "presentation": "signals-and-current-structure-v1",
+      "as_of": "2026-10-18T06:00:00Z",
+      "packet_id": "a09123215b05ed081a503352",
+      "packet_end": "a09123215b05ed081a503352",
+      "batch": {
+        "included": 2
+      },
+      "acknowledgement_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "report_items": [
+        {
+          "id": "465f8744705dc6cd4470d974",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 420,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        },
+        {
+          "id": "47e65633fdbeed06c16da8db",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 421,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        }
+      ]
+    },
+    "persisted_receipt": "465f8744705dc6cd4470d974,47e65633fdbeed06c16da8db",
+    "receipt_read": "success",
+    "prior_report": null,
+    "prior_history": "unavailable",
+    "first_delivery_authorized": false,
+    "ack_write": "not_attempted",
+    "operational_changes": false
+  },
+  {
+    "case_id": 19,
+    "name": "fresh packet new as_of same acknowledged signals",
+    "now": "2026-10-18T06:10:00Z",
+    "packet": {
+      "version": 2,
+      "presentation": "signals-and-current-structure-v1",
+      "as_of": "2026-10-18T06:09:00Z",
+      "packet_id": "a09123215b05ed081a503352",
+      "packet_end": "a09123215b05ed081a503352",
+      "batch": {
+        "included": 2
+      },
+      "acknowledgement_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "report_items": [
+        {
+          "id": "465f8744705dc6cd4470d974",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 420,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        },
+        {
+          "id": "47e65633fdbeed06c16da8db",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 421,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        }
+      ]
+    },
+    "persisted_receipt": {
+      "packet_id": "a09123215b05ed081a503352",
+      "item_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "delivered_at": null,
+      "delivery_evidence": "prior_complete_report"
+    },
+    "receipt_read": "success",
+    "prior_report": null,
+    "prior_history": "unavailable",
+    "first_delivery_authorized": false,
+    "ack_write": "not_attempted",
+    "operational_changes": false
+  },
+  {
+    "case_id": 20,
+    "name": "acknowledged packet plus operational error",
+    "now": "2026-10-18T06:10:00Z",
+    "packet": {
+      "version": 2,
+      "presentation": "signals-and-current-structure-v1",
+      "as_of": "2026-10-18T06:00:00Z",
+      "packet_id": "a09123215b05ed081a503352",
+      "packet_end": "a09123215b05ed081a503352",
+      "batch": {
+        "included": 2
+      },
+      "acknowledgement_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "report_items": [
+        {
+          "id": "465f8744705dc6cd4470d974",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 420,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        },
+        {
+          "id": "47e65633fdbeed06c16da8db",
+          "kind": "RAW_SIGNAL",
+          "ticker": "MSFT",
+          "origin_tf": "1D",
+          "signal": "Sell",
+          "price": 421,
+          "confirmed_at": "2026-10-16T20:00:00Z",
+          "market_timezone": "America/New_York"
+        }
+      ]
+    },
+    "persisted_receipt": {
+      "packet_id": "a09123215b05ed081a503352",
+      "item_ids": [
+        "465f8744705dc6cd4470d974",
+        "47e65633fdbeed06c16da8db"
+      ],
+      "delivered_at": null,
+      "delivery_evidence": "prior_complete_report"
+    },
+    "receipt_read": "success",
+    "prior_report": null,
+    "prior_history": "unavailable",
+    "first_delivery_authorized": false,
+    "ack_write": "not_attempted",
+    "operational_changes": true
+  }
+]

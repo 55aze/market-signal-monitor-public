@@ -1,0 +1,178 @@
+[
+  {
+    "case_id": 1,
+    "emit_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "receipt_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "status": "REPORT",
+    "receipt_write_ids": [],
+    "reason": "Explicit first-delivery authorization permits the complete fresh batch; current response is not acknowledged."
+  },
+  {
+    "case_id": 2,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "SILENT",
+    "receipt_write_ids": [],
+    "reason": "Valid durable receipt covers every packet item even without chat history."
+  },
+  {
+    "case_id": 3,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "SILENT",
+    "receipt_write_ids": [],
+    "reason": "Receipt hash uses sorted unique IDs; reordered persisted IDs still cover the entire packet."
+  },
+  {
+    "case_id": 4,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "ACK_PENDING",
+    "receipt_write_ids": [],
+    "reason": "Persisted receipt overlaps only part of the batch; preserve it and wait for a producer batch without acknowledged items."
+  },
+  {
+    "case_id": 5,
+    "emit_ids": [
+      "a963541268736b1c3b20dabf"
+    ],
+    "receipt_ids": [
+      "a963541268736b1c3b20dabf"
+    ],
+    "status": "REPORT",
+    "receipt_write_ids": [],
+    "reason": "Valid persisted evidence has no overlap with this complete fresh batch; deliver its one raw signal."
+  },
+  {
+    "case_id": 6,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "SILENT",
+    "receipt_write_ids": [],
+    "reason": "Complete packet is empty and there are no operational changes."
+  },
+  {
+    "case_id": 7,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "RECEIPT_READ_FAILED",
+    "receipt_write_ids": [],
+    "reason": "Network failure prevents reading durable acknowledgement evidence."
+  },
+  {
+    "case_id": 8,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "RECEIPT_READ_FAILED",
+    "receipt_write_ids": [],
+    "reason": "Truncated receipt cannot be treated as an empty property."
+  },
+  {
+    "case_id": 9,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "RECEIPT_READ_FAILED",
+    "receipt_write_ids": [],
+    "reason": "Persisted packet_id does not equal the required SHA256 identity of its item IDs."
+  },
+  {
+    "case_id": 10,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "READ_FAILED",
+    "receipt_write_ids": [],
+    "reason": "Packet end marker is missing; validate the full packet before suppression."
+  },
+  {
+    "case_id": 11,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "READ_FAILED",
+    "receipt_write_ids": [],
+    "reason": "Packet report item IDs are duplicated, violating packet integrity."
+  },
+  {
+    "case_id": 12,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "DELIVERY_UNCONFIRMED",
+    "receipt_write_ids": [],
+    "reason": "Empty receipt plus unavailable history does not establish first delivery."
+  },
+  {
+    "case_id": 13,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "WRITE_FAILED",
+    "receipt_write_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "reason": "Complete prior report proves these items were reported; acknowledgement failed after retry, so exclude them and report the failure."
+  },
+  {
+    "case_id": 14,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "SILENT",
+    "receipt_write_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "reason": "Complete prior report acknowledgement is verified and all current items are covered; no new receipt or signals."
+  },
+  {
+    "case_id": 15,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "DELIVERY_UNCONFIRMED",
+    "receipt_write_ids": [],
+    "reason": "Receipt-only history is not readable complete-report evidence; empty durable receipt cannot establish delivery status."
+  },
+  {
+    "case_id": 16,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "SILENT",
+    "receipt_write_ids": [],
+    "reason": "Durable receipt covers this batch and must not be replaced with the different prior-chat receipt while its IDs remain pending."
+  },
+  {
+    "case_id": 17,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "SILENT",
+    "receipt_write_ids": [],
+    "reason": "Supported legacy ID array suppresses its exact IDs without promotion to a structured receipt."
+  },
+  {
+    "case_id": 18,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "SILENT",
+    "receipt_write_ids": [],
+    "reason": "Supported legacy CSV suppresses its exact IDs without inventing delivery time."
+  },
+  {
+    "case_id": 19,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "SILENT",
+    "receipt_write_ids": [],
+    "reason": "New packet generation time does not undo durable acknowledgement of identical signal IDs."
+  },
+  {
+    "case_id": 20,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "OPERATIONAL",
+    "receipt_write_ids": [],
+    "reason": "All raw signals are acknowledged; report only the operational change."
+  }
+]

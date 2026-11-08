@@ -1,0 +1,248 @@
+[
+  {
+    "case_id": 1,
+    "emit_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "receipt_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "status": "REPORT",
+    "receipt_write_ids": [],
+    "reason": "Complete fresh packet; unavailable prior evidence does not prevent a fresh complete report."
+  },
+  {
+    "case_id": 2,
+    "emit_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "receipt_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "status": "REPORT",
+    "receipt_write_ids": [],
+    "reason": "Persisted receipt alone is not readable complete prior-report coverage; leave it unchanged and report the complete packet."
+  },
+  {
+    "case_id": 3,
+    "emit_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "receipt_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "status": "REPORT",
+    "receipt_write_ids": [],
+    "reason": "No complete prior report is readable; the reordered persisted receipt cannot establish coverage. Report exact current packet order."
+  },
+  {
+    "case_id": 4,
+    "emit_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db",
+      "a963541268736b1c3b20dabf"
+    ],
+    "receipt_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db",
+      "a963541268736b1c3b20dabf"
+    ],
+    "status": "REPORT",
+    "receipt_write_ids": [],
+    "reason": "Python owns batch selection; no complete prior report is readable to verify suppression, so deliver every raw item in this complete batch."
+  },
+  {
+    "case_id": 5,
+    "emit_ids": [
+      "a963541268736b1c3b20dabf"
+    ],
+    "receipt_ids": [
+      "a963541268736b1c3b20dabf"
+    ],
+    "status": "REPORT",
+    "receipt_write_ids": [],
+    "reason": "Complete new packet contains one raw signal; deliver it and append its exact receipt."
+  },
+  {
+    "case_id": 6,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "SILENT",
+    "receipt_write_ids": [],
+    "reason": "Complete empty packet and no operational changes."
+  },
+  {
+    "case_id": 7,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "READ_FAILED",
+    "receipt_write_ids": [],
+    "reason": "Receipt tool read failed with network_error; report the read failure."
+  },
+  {
+    "case_id": 8,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "READ_FAILED",
+    "receipt_write_ids": [],
+    "reason": "Receipt read is truncated; report the incomplete read without claiming acknowledgement."
+  },
+  {
+    "case_id": 9,
+    "emit_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "receipt_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "status": "REPORT",
+    "receipt_write_ids": [],
+    "reason": "No complete prior report is available. Leave the unverified persisted receipt unchanged and report the complete fresh packet."
+  },
+  {
+    "case_id": 10,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "READ_FAILED",
+    "receipt_write_ids": [],
+    "reason": "Required packet_end is missing; no batch receipt or delivery."
+  },
+  {
+    "case_id": 11,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "READ_FAILED",
+    "receipt_write_ids": [],
+    "reason": "report_items IDs are not unique; packet integrity fails."
+  },
+  {
+    "case_id": 12,
+    "emit_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "receipt_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "status": "REPORT",
+    "receipt_write_ids": [],
+    "reason": "Unavailable prior evidence explicitly does not prevent a fresh complete report."
+  },
+  {
+    "case_id": 13,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "WRITE_FAILED",
+    "receipt_write_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "reason": "Complete prior report verifies both IDs; acknowledgement failed after retry, so report WRITE_FAILED and do not repeat verified prior items."
+  },
+  {
+    "case_id": 14,
+    "emit_ids": [],
+    "receipt_ids": [],
+    "status": "SILENT",
+    "receipt_write_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "reason": "Complete prior report and verified receipt write cover both packet IDs; no undelivered signal or operational change remains."
+  },
+  {
+    "case_id": 15,
+    "emit_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "receipt_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "status": "REPORT",
+    "receipt_write_ids": [],
+    "reason": "Receipt-only history is insufficient to acknowledge prior coverage; deliver the complete current packet."
+  },
+  {
+    "case_id": 16,
+    "emit_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "receipt_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "status": "WRITE_FAILED",
+    "receipt_write_ids": [
+      "a963541268736b1c3b20dabf"
+    ],
+    "reason": "Acknowledge the readable complete prior report containing C. No write/readback success is supplied, so acknowledgement cannot be confirmed. Current A/B packet remains reportable because neither item is in that verified prior report."
+  },
+  {
+    "case_id": 17,
+    "emit_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "receipt_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "status": "REPORT",
+    "receipt_write_ids": [],
+    "reason": "An ID array is not a complete prior report or valid receipt object. Leave it unchanged; deliver the complete current packet."
+  },
+  {
+    "case_id": 18,
+    "emit_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "receipt_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "status": "REPORT",
+    "receipt_write_ids": [],
+    "reason": "CSV IDs do not establish complete prior-report coverage. Leave persisted text unchanged and deliver the complete current packet."
+  },
+  {
+    "case_id": 19,
+    "emit_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "receipt_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "status": "REPORT",
+    "receipt_write_ids": [],
+    "reason": "Fresh packet is complete and no actual complete prior report is readable; persisted receipt alone is insufficient coverage evidence."
+  },
+  {
+    "case_id": 20,
+    "emit_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "receipt_ids": [
+      "465f8744705dc6cd4470d974",
+      "47e65633fdbeed06c16da8db"
+    ],
+    "status": "REPORT",
+    "receipt_write_ids": [],
+    "reason": "Report all raw signals because complete prior coverage cannot be read, and include the operational change separately."
+  }
+]

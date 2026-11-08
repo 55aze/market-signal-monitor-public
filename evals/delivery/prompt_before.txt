@@ -1,0 +1,78 @@
+Use Notion: read `Packet` on the configured Trading Signal Watch report row. Keep the existing six-hour schedule. Python owns state, coverage and batch selection. The only permitted write is `Delivered IDs`.
+
+At the start, acknowledge only a complete prior report you can actually read, including its Receipt and every report item. A Receipt alone is not proof of coverage. Write {"packet_id":"<prior receipt>","item_ids":["<prior receipt IDs>"],"delivered_at":null,"delivery_evidence":"prior_complete_report"}. If the actual prior message timestamp is verifiable, replace null with that timezone-aware ISO timestamp. Otherwise keep null: never substitute the current time. Include an actual report URL/message reference as optional `report_ref` only when available; never invent one. Do not acknowledge the current response, incomplete reports, unseen history, or IDs merely copied by an older report. If prior evidence is unavailable, leave Delivered IDs unchanged and continue reading Packet; this does not prevent a fresh complete report.
+
+For the Notion connector's update_properties command, Delivered IDs is text parsed as Notion-flavored Markdown, not a raw JSON transport. Fetch the data source schema first. Serialize the verified receipt ONCE with JSON.stringify, then escape the resulting text for Notion inline Markdown before passing it as properties["Delivered IDs"]. In JavaScript:
+const receiptJson = JSON.stringify(receipt);
+const notionText = receiptJson.replace(/[\\*~`$\[\]<>{}|^]/g, ch => "\\" + ch);
+Pass notionText as a STRING. In particular, braces and brackets must reach the tool value as \{ \} \[ \]. The tool-call JSON encoding adds its own escaping; do not confuse that with a second JSON.stringify of the receipt. Never pass a nested receipt object, an ID array, a REST rich_text wrapper, or double-serialized JSON. Live connector tests showed that unescaped object JSON gives "properties.Delivered IDs: Invalid input", and unescaped array JSON can return success while storing an empty value.
+
+After write completion, verify the persisted plain-text property parses ONCE as the receipt object and matches every field, including item_ids in order and explicit delivered_at. Fetch/rows responses may render Notion Markdown escapes: decode that presentation layer before JSON parsing, or query just this row's Delivered IDs through SQL after reading the schema. Do not strip arbitrary JSON escapes or accept an outer quoted JSON string. A successful tool response alone is not acknowledgement. On a failed write/readback, report WRITE_FAILED; do not remove pending IDs or fabricate evidence. Retry at most once with the same verified receipt and the correct Markdown transport encoding, then stop acknowledgement attempts.
+
+Read Packet after any receipt write. Do not repeat IDs confirmed by the verified prior report even if the scanner has not consumed them yet. Six hours is cadence, not an event cutoff. `as_of` is generation time; coverage_snapshot describes the underlying stream freshness. Missing Packet or as_of older than two hours: PACKET_NOT_READY. Tool/read/write failures: TOOL_UNAVAILABLE / READ_FAILED / WRITE_FAILED with short evidence. Report operational_errors and data_gaps separately from setup failures. If no undelivered raw signals or operational changes remain, stay silent. Never change, pause or resume the schedule.
+
+Require compact Packet version 2. Before reporting, read all delivery fields in full: packet_id, as_of, batch, report_items, acknowledgement_ids, and the final packet_end. Verify packet_end equals packet_id; report_items IDs are unique and exactly match acknowledgement_ids in order; their count equals batch.included. Every item line must be fully visible: a count, fragment, or end marker alone is insufficient. If the producer still sends an older version, say it needs updating and do not append a Receipt. If any delivery field is truncated, missing, or inconsistent, report READ_FAILED with short evidence and do not append a Receipt or acknowledge that batch. Never reconstruct missing lines or IDs from history.
+
+
+# Signal report presentation contract
+
+Use Packet `presentation=signals-and-current-structure-v1`. Packet remains version 2 with the existing complete-read and receipt integrity checks. `report_items` and `acknowledgement_ids` contain RAW_SIGNAL only. Lifecycle, higher-TF duplicate notifications and operational history remain stored in Engine State; their exclusion is not acknowledgement or delivery. Do not publish Qualified/Developing/Opportunity/Trend classifications. Keep existing instrument coverage and scheduling.
+
+PART 1 — 新信号
+- Report every outstanding raw signal, with ticker only, TF, 抄底/卖出, price/value, confirmed market-local date/time. Sort 1W, 1D, 4H, 30m; newest first within each TF. Preserve each event, including repeated same-direction bars. Clearly separate overdue catch-up from recently occurring signals; packet generation time is not signal time.
+- No lifecycle changes, duplicate HIGHER_TF_SIGNAL notifications or operational chatter in this section.
+
+PART 2 — 近期信号与最新结构
+- Use all watch_context.rows, not affected_states and not the five-context legacy limit. Selection: any confirmed 4H/1D/1W signal within 14 calendar days OR at least 3 distinct 30m Bottom bars within 48 hours. Deduplicate same ticker/TF/bar/direction. Merge enrollment reasons, one row per ticker. These are report inclusion windows, not signal validity/expiry claims.
+- For each ticker anchor to the highest TF with a signal INSIDE the window, then its newest signal at that TF. Group by this anchor's market-local bar date, dates newest first; within a date TF highest first, then newest confirmation first. Never anchor to imported historical highest-TF labels.
+- Separate table per date. Columns: Ticker | 1W | 1D | 4H | 30m. Only ticker symbols, no company names and no separate other-signals column.
+- FIRST LINE of each TF cell: cells[tf].structure. Full price > Blue > Yellow > EMA200 is `bull`; exact reverse is `bear`. Otherwise concise ladder with ●, blue/yellow, E200, no 顶/底 text. Repeated same-color symbols retain band boundary ordering; never collapse overlapping bands into a false ordering. This classification is not EMA alignment or a lifecycle stage.
+- SECOND LINE inside that SAME cell: its recent signal and market-local MM/DD. 抄底 text RED, 卖出 text GREEN. No colored dots or circles. If both directions exist at this TF, show each on its own separate line, newest first. Do not concatenate signals after the structure. Signals list the latest occurrence per TF/direction within 14 days. Keep this rule internal; do not explain it in every report.
+- Never use LaTeX/KaTeX/math delimiters for report text, structures or colored signals: this client exposed the source, braces and backslashes. Use a supported rendered table with actual two-line cells and red 抄底 / green 卖出 text when available. Read the rendering skill when available. Do not emit raw HTML into ordinary Markdown. If no supported colored multiline table surface is available, use a plain Markdown table with consecutive rows per ticker: first row ticker + four structures; second row blank ticker + four signal/date values; a third row only for opposite-direction signals. These rows form one visual ticker block. Preserve the second-line placement; never put signals after structures. In this fallback omit color, never add colored dots or raw style code. Do not claim color was rendered.
+- Every TF structure is its latest confirmed native bar snapshot, independently of signal occurrence. Check cell freshness and bar_at/confirmed_at. Only say current when freshness=current; mark stale/unverified/missing per cell. Never reuse signal-event geometry as current geometry. Keep actual per-TF cutoff timestamps available in compact rendered details when supported. In the visible report show one short as-of line per market (1W/1D/4H/30m), no prose paragraph; mark exceptions in cells. Stale = 旧 MM/DD, unverified freshness = 待核, missing = 缺. Never imply a stale snapshot is current; do not repeat exceptions in a separate paragraph per market. Current week is excluded until closed.
+- watch_context reflects dated engine-observed history, not imported free text. If a needed historical window is not covered, explicitly label coverage incomplete and supplement from persisted Signal History and Current Structure records, never inferred labels. Historical queries supply part-2 context only and cannot expand part-1 delivery IDs.
+- Finish with structure synthesis sized to the evidence, with no fixed sentence or character limit: key cross-TF strength/weakness and material differences between signal and structure. No per-ticker prose repetition, invented slopes, compression, crossover timing or generic next-step boilerplate.
+
+TIME AND SCOPE
+- All display dates/times use each instrument's own market_timezone (IANA conversion handles DST). US equities/indices/ETFs use America/New_York. Never add Taipei, Shanghai, user-local or a second clock. Show timezone once per market section. For unknown zones say unknown; do not invent local time. Group distinct markets separately when needed, retaining the existing configured universe.
+- Price is the recorded signal value, not a live quote. Distinguish bar date, confirmation time, packet as_of and current structure time. Yield signals refer to yields, not bond prices.
+
+DELIVERY AND ERRORS
+- Retain complete prior-report evidence/readback safeguards. No current-response acknowledgement. A new-contract Receipt covers exactly the delivered raw report_items. Internal records never go into that Receipt. A legacy packet without this presentation marker may be shown as a transitional signal preview, but do NOT issue a Receipt for a selectively omitted legacy batch; wait for the next producer scan. Complete older reports may still be acknowledged under their original contract.
+- Active material data issues get one concise 数据 line, separate from signals; no routine recovered-history dump. Missing context must not be called zero signals. No unresolved TradingView parity boilerplate.
+- If no undelivered signals or operational changes, keep the existing silence policy. Remaining batch count, when nonzero, is stated once.
+
+After complete delivery append Receipt with packet_id and exact acknowledgement_ids. Never acknowledge omitted raw signals.
+
+
+Configured Notion sources: report row 3e2ad04b-46a6-8186-9613-d2749e176bea; Signal History collection://4eae824c-d660-45c0-a159-fec053ab308d; Scan Status (Current Structure property) collection://51a5d605-6ed8-462a-901d-e9d20c07cbfc. Fetch schema before querying; handle pagination/truncation explicitly. For a legacy presentation packet, use these sources to build part 2 read-only, keep raw signals distinct from internal records, and label only the new-signal heading 新信号（预览）; no receipt for a selectively omitted legacy batch.
+
+VISIBLE OUTPUT — concise scan-first correction, 2026-10-16:
+- Begin directly with 新信号（N） (or 新信号（预览·N） for a legacy selectively omitted batch). No generic report title, transition paragraph, Packet/presentation marker, integrity-success message, Receipt explanation, recovered-event history, no-overdue statement, duplicate-suppression statement, live-price disclaimer, or repeated legend.
+- New signals: compact table Ticker | TF | 信号 | 信号值 | 确认时间. Preserve every raw event. Market timezone label once, using EDT/EST/HKT where verified. Do not label instruments UTC merely because stored timestamps are UTC; derive configured market timezone, mark unknown if unknown.
+- Second section heading: 近期信号 · 当前结构. Market label once, then date-only headings MM/DD. Exactly one table per date, including dates with one ticker. Never combine 10/07–10/05 or 10/14–10/09. No 日期 column. Within date, highest signal TF first then newest confirmation; bold the anchor signal text/date so the reason for grouping is visible.
+- Structures: bull/bear as defined above; otherwise compact ladder. Retain band boundary order; never simplify overlapping bands into bull/bear. No formula wrappers or 顶/底 labels.
+- Keep data-quality markers compact inside affected cells. At end, at most one 数据 line grouping common problems by ticker/TF/date, only when necessary to interpret the report. Do not repeat these issues in the structural synthesis.
+- Keep receipt/integrity checks unchanged internally. If a receipt is required, retain exact complete receipt in a separate end metadata block (collapsed only if the client truly supports it); do not delete or abbreviate IDs for brevity. Validation/read/write failures still receive one short actionable line; success mechanics remain silent.
+- Before output inspect the composed report: no raw dollar math delimiters, substack, text/color commands, stray braces, literal HTML, merged date groups, inline structure+signal concatenation, or repeated explanatory paragraphs. A display fallback must remain readable without any math or HTML interpretation.
+
+结构汇总要求：
+第二部分结束后，根据表格做结构汇总。
+
+先找本轮最重要的变化或差异，再选择需要解释的股票。优先解释最高 TF 的新信号与当前结构的关系，以及多个标的是否呈现共同现象。用代表性股票支撑判断，不逐只复述表格；没有额外解释价值的双向信号、周期分歧可以省略。
+
+信号和结构分别判断。bull 中出现卖出，不等于结构已经反转；bear 中出现抄底，不等于结构已经修复。说明二者一致或冲突在哪里，不机械套用这些句式。
+
+严格区分当前状态与变化过程：
+- 只有当前快照时，写“当前为 bull”“价格位于蓝带下方”；只有核实前后结构变化，才能写“转 bull”“转弱”“修复”。
+- 不同 TF 信号的先后出现，只能说明时间顺序；不能据此断言风险向上传导。
+- 旧信号仍在14天展示窗口内，不代表它仍有效；不能仅因与新信号方向相同就称为“共振”。
+
+汇总按重要性组织，长度随有解释价值的信息决定。不设句数、字数限制。不重复表格、数据缺口说明或固定套话；不强求每个市场、每只股票都有一句结论。
+
+STRUCTURE READ CORRECTION:
+- The configured 51a5d605 collection is Scan Status, with Current Structure JSON per Stream, not a ticker-named structure collection.
+- Prefer packet cell.stream / row.instrument_id for the exact source join. Stream is instrument_id:TF, NOT display ticker:TF or provider Symbol:TF. BTC => instrument_id BTCUSD => streams BTCUSD:1W/1D/4H/30m. 0100 => instrument_id 0100, provider Symbol 100 => streams 0100:1W/1D/4H/30m. Preserve leading zeros. Resolve configured notion_ticker, id and exchange/symbol; never fuzzy-match a different instrument.
+- Before declaring missing, read all four exact Stream rows and parse Current Structure. A zero-result display-name query, a truncated result, or an engine lifecycle freeze is not proof the scanner has no snapshot. If a packet cell is absent or stale, read its exact Scan Status source and use the newer valid structure with its own timestamp, source and freshness; never silently overwrite state.
+- Freshness Unverifiable / verification=disabled means close/freshness policy unavailable, NOT TradingView indicator parity failure and NOT absent structure. Distinguish missing snapshot, stale snapshot and unavailable freshness verification. Do not revive old parity disclaimers.
+- Use current source timestamps, never copy previous report missing/gap assertions without checking.
