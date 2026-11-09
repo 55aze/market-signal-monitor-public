@@ -54,6 +54,42 @@ jobs:
               print('SESSION_AUDIT ' + json.dumps(record), flush=True)
           Path('session-audit/summary.json').write_text(json.dumps(report, indent=2))
           PY
+      - name: Read allowlisted native session metadata
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, re
+          from pathlib import Path
+          from tvDatafeed import TvDatafeed, Interval
+          safe_fields = {'name','full_name','pro_name','exchange','timezone','session','session_display','session_holidays','corrections','subsessions','regular_session','has_intraday','has_daily','intraday_multipliers'}
+          records = []
+          original = getattr(TvDatafeed, '_TvDatafeed__create_df')
+          def capture(raw, symbol):
+              for frame in re.split(r'~m~\d+~m~', raw):
+                  try:
+                      msg = json.loads(frame.strip())
+                  except (ValueError, TypeError):
+                      continue
+                  if isinstance(msg, dict) and msg.get('m') == 'symbol_resolved':
+                      payload = msg.get('p', [])
+                      if payload and isinstance(payload[-1], dict):
+                          record = {'symbol':symbol,'metadata':{k:v for k,v in payload[-1].items() if k in safe_fields}}
+                          records.append(record)
+                          print('SESSION_METADATA '+json.dumps(record), flush=True)
+              return original(raw, symbol)
+          setattr(TvDatafeed, '_TvDatafeed__create_df', staticmethod(capture))
+          for exchange,symbol in [('TVC','DXY'),('TVC','US02Y'),('FX_IDC','JPYUSD')]:
+              client = TvDatafeed()
+              try:
+                  client.get_hist(symbol, exchange, Interval.in_30_minute, n_bars=5)
+              finally:
+                  if client.ws is not None:
+                      client.ws.close()
+          Path('session-audit/metadata.json').write_text(json.dumps(records,indent=2))
+          PY
+      - name: Retain dependency wheels for offline replay
+        if: always()
+        run: python -m pip download --no-deps --dest session-audit/wheels pandas_market_calendars exchange_calendars pyluach korean_lunar_calendar toolz
       - name: Retain public-source replay evidence
         if: always()
         uses: actions/upload-artifact@v4
