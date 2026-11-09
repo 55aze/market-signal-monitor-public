@@ -1,0 +1,71 @@
+name: 30m session recovery verification
+on:
+  push:
+    branches: [fix/30m-session-recovery-20261110]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . -r requirements-tv.txt
+      - name: Regression suite
+        run: python -m unittest discover -s tests -v
+      - name: Inspect native provider timestamps without credentials or writes
+        if: always()
+        run: |
+          mkdir -p session-audit
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import pandas as pd
+          from market_signal_monitor.scanner import fetch_worker
+          from market_signal_monitor.confirmation import confirmation_times, policy_for
+          pairs = [('TVC', x) for x in ('DXY','US02Y','US05Y','US10Y','US30Y')] + [('FX_IDC','JPYUSD')]
+          report = []
+          for exchange, symbol in pairs:
+              instrument = {'id': symbol, 'exchange': exchange, 'symbol': symbol, 'extended_session': False}
+              record = {'stream': symbol + ':30m', 'source': exchange + ':' + symbol}
+              try:
+                  bars = fetch_worker(instrument, '30m', 2200, timeout=30, attempts=2)
+                  idx = pd.DatetimeIndex(bars.index).tz_convert('UTC')
+                  Path('session-audit/' + symbol + '-timestamps.json').write_text(json.dumps([x.isoformat() for x in idx]))
+                  tail = idx[idx >= pd.Timestamp('2026-10-19T00:00:00Z')]
+                  frame = pd.DataFrame({'stamp': tail})
+                  frame['date'] = frame.stamp.dt.date
+                  sessions = [{'date': str(day), 'count': len(g), 'first_utc': g.stamp.iloc[0].isoformat(), 'last_utc': g.stamp.iloc[-1].isoformat()} for day, g in frame.groupby('date')]
+                  gaps = [{'before': a.isoformat(), 'after': b.isoformat(), 'minutes': (b-a).total_seconds()/60} for a,b in zip(tail[:-1],tail[1:]) if b-a > pd.Timedelta(minutes=30)]
+                  record.update({'bars': len(idx), 'first': idx[0].isoformat(), 'last': idx[-1].isoformat(), 'policy': policy_for(instrument), 'sessions': sessions, 'gaps': gaps})
+                  try:
+                      confirmation_times(bars, instrument, '30m', strict_since=pd.Timestamp('2026-10-19T00:00:00Z'))
+                      record['validation'] = 'passed'
+                  except Exception as exc:
+                      record['validation'] = str(exc)
+              except Exception as exc:
+                  record['fetch_error'] = type(exc).__name__ + ': ' + str(exc)
+              report.append(record)
+              print('SESSION_AUDIT ' + json.dumps(record), flush=True)
+          Path('session-audit/summary.json').write_text(json.dumps(report, indent=2))
+          PY
+      - name: Retain public-source replay evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: session-recovery-evidence
+          retention-days: 7
+          path: |
+            session-audit/
+            src/
+            tests/
+            scripts/
+            pyproject.toml
+            requirements-tv.txt
+            config/universe.example.json
+            pine/
