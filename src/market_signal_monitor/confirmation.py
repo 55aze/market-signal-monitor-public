@@ -13,6 +13,10 @@ _TREASURY_YIELD_IDS = {"US02Y", "US05Y", "US10Y", "US30Y"}
 
 
 def policy_for(instrument):
+    from .audited_sessions import native_policy
+    audited = native_policy(instrument)
+    if audited is not None:
+        return audited
     policy = instrument.get("confirmation")
     if (instrument.get('exchange'), instrument.get('symbol')) in {('TVC', 'DXY'), ('OANDA', 'XAUUSD')}:
         return {'type': 'provider_week', 'timezone': 'America/New_York',
@@ -65,7 +69,7 @@ def policy_id(instrument):
 
 def market_timezone(instrument):
     policy = policy_for(instrument) or {}
-    return (instrument.get("market_timezone") or policy.get("timezone")
+    return (instrument.get("market_timezone") or policy.get("display_timezone") or policy.get("timezone")
             or EXCHANGE_TIMEZONES.get(instrument.get("exchange")) or "UTC")
 
 
@@ -318,6 +322,9 @@ def confirmation_times(bars, instrument, timeframe, strict_since=None):
     strict_since = pd.Timestamp(strict_since) if strict_since is not None else bars.index.min()
     if strict_since.tzinfo is None:
         raise ValueError("strict_since must be timezone-aware")
+    if policy["type"] == "audited_native":
+        from .audited_sessions import native_confirmation_times
+        return native_confirmation_times(bars, policy, timeframe, strict_since)
     if policy["type"] == "continuous_interval":
         return [stamp + _duration(timeframe) for stamp in bars.index]
     if policy['type'] == 'provider_week':

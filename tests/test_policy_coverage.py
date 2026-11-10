@@ -108,13 +108,14 @@ class PolicyCoverageTests(unittest.TestCase):
         self.assertEqual(status['status'], 'current')
         self.assertEqual(status['missing_bar_opens'], [])
 
-    def test_remaining_special_feeds_stay_unclassified(self):
-        for name in ['VIX']:
-            self.assertIsNone(policy_for(self.instruments[name]), name)
-        index = pd.to_datetime(['2026-09-11T00:00Z'], utc=True)
+    def test_vix_brent_use_audited_native_grid(self):
+        for name in ['VIX', 'BRENT']:
+            self.assertEqual(policy_for(self.instruments[name])['type'], 'audited_native')
+        index = pd.to_datetime(['2026-09-11T20:00Z'], utc=True)
         status = assess_freshness(index, self.instruments['BRENT'], '4H',
                                   pd.Timestamp('2026-09-13T08:00Z'), index[0], index[0])
-        self.assertEqual(status['verification'], 'unsupported_continuous')
+        self.assertEqual(status['verification'], 'audited_native')
+        self.assertEqual(status['status'], 'current')
 
     def test_bad_equity_anchor_is_rejected_not_silently_confirmed(self):
         index = pd.to_datetime(['2026-09-11T20:00Z'], utc=True)
