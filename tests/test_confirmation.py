@@ -61,8 +61,8 @@ class ConfirmationTests(unittest.TestCase):
         for instrument in [
             {'id':'BTCUSD','exchange':'BITSTAMP','symbol':'BTCUSD',
              'confirmation':{'type':'continuous_interval','id':'btc-v1'}},
-            {'id':'BRENT','exchange':'ICEEUR','symbol':'BRN1!',
-             'confirmation':{'type':'continuous_interval','id':'brent-candidate-v1'}}]:
+            {'id':'UNREVIEWED','exchange':'TEST','symbol':'UNREVIEWED',
+             'confirmation':{'type':'continuous_interval','id':'unreviewed-candidate-v1'}}]:
             b=bars(['2026-09-07T00:00Z'])
             self.assertEqual(confirmation_times(b,instrument,'30m')[0],pd.Timestamp('2026-09-07T00:30Z'))
             self.assertEqual(confirmation_times(b,instrument,'4H')[0],pd.Timestamp('2026-09-07T04:00Z'))
