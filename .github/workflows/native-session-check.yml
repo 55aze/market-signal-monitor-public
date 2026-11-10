@@ -1,0 +1,59 @@
+name: Verify native session policies
+on:
+  push:
+    branches: [fix/vix-brent-native-session-verification]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - name: Full regression suite
+        run: python -m unittest discover -s tests -v
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 42803875938
+          name: other-stream-session-evidence
+          path: native-audit
+      - name: Replay all native VIX and Brent timeframes
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import pandas as pd
+          from market_signal_monitor.confirmation import confirmation_times
+          from market_signal_monitor.freshness import assess_freshness
+          root = Path('native-audit')
+          captured = {r['stream']:r for r in json.loads((root/'summary.json').read_text())}
+          results=[]
+          for name,ex,sym in [('VIX','CBOE','VIX'),('BRENT','ICEEUR','BRN1!')]:
+              instrument={'id':name,'exchange':ex,'symbol':sym}
+              for tf in ['30m','4H','1D','1W']:
+                  idx=pd.to_datetime(json.loads((root/(name+'-'+tf+'-timestamps.json')).read_text()),utc=True)
+                  now=pd.Timestamp(captured[name+':'+tf]['fetched_at'])
+                  closes=confirmation_times(pd.DataFrame(index=idx),instrument,tf,strict_since=pd.Timestamp('2026-09-16T00:00Z'))
+                  latest=max(op for op,cl in zip(idx,closes) if pd.notna(cl) and cl<=now)
+                  checkpoint=idx[idx<pd.Timestamp('2026-10-19T00:00Z')][-1]
+                  freshness=assess_freshness(idx,instrument,tf,now,latest,previous_through=checkpoint)
+                  assert freshness['status']=='current', (name,tf,freshness)
+                  assert freshness['missing_count']==0
+                  assert latest<=now
+                  result={'stream':name+':'+tf,'latest_confirmed_open':latest.isoformat(),'captured_at':now.isoformat(),'freshness':freshness}
+                  results.append(result)
+                  print(json.dumps(result),flush=True)
+          Path('native-replay.json').write_text(json.dumps(results,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: verified-native-session-replay
+          path: native-replay.json
+          retention-days: 30
