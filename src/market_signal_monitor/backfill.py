@@ -30,6 +30,7 @@ def _backfill_bars(config, timeframe):
 class StatusStore:
     def __init__(self, client, source):
         self.client, self.source = client, source
+        self._attempt_assessments = {}
 
     def preflight(self):
         actual = self.client.request('GET', f'data_sources/{self.source}')['properties']
@@ -85,8 +86,10 @@ class StatusStore:
         return {}
 
     def live_attempt(self, page, at):
-        props = {**self.freshness_properties({'status':'unverifiable'}),
-                 'Last Attempt': {'date': {'start': pd.Timestamp(at).isoformat()}},
+        # Polling is not new evidence about the committed snapshot. Keep its
+        # assessment intact until success or an actual failure is recorded.
+        self._attempt_assessments.pop(page, None)
+        props = {'Last Attempt': {'date': {'start': pd.Timestamp(at).isoformat()}},
                  **self._run_url_props()}
         self.client.request('PATCH', f'pages/{page}', {'properties': props})
 
@@ -103,6 +106,7 @@ class StatusStore:
         if structure and structure.get('freshness'):
             props.update(self.freshness_properties(structure['freshness']))
         self.client.request('PATCH', f'pages/{page}', {'properties': props})
+        self._attempt_assessments.pop(page, None)
 
     def freshness_properties(self, freshness):
         status = {'current':'Current', 'stale_tail':'Stale', 'interior_gap':'Gap'}.get(
@@ -118,16 +122,23 @@ class StatusStore:
         props = self.freshness_properties(freshness)
         if props:
             self.client.request('PATCH', f'pages/{page}', {'properties':props})
+        # Remember only a successfully persisted assessment from this attempt.
+        self._attempt_assessments[page] = dict(freshness)
 
     def live_failure(self, page, status, error, at):
         if status not in ('Fetch Failed', 'Write Failed', 'Insufficient History'):
             raise ValueError('Invalid live status')
-        props = {'Scan Status': {'select': {'name': status}},
+        # A real error invalidates this attempt. Preserve a gap proven in this
+        # attempt instead of either calling old data current or losing the gap.
+        assessed = self._attempt_assessments.get(page, {'status': 'unverifiable'})
+        props = {**self.freshness_properties(assessed),
+                 'Scan Status': {'select': {'name': status}},
                  'Last Attempt': {'date': {'start': pd.Timestamp(at).isoformat()}},
                  'Error': {'rich_text': rich(error)},
                  'Unresolved Gap': {'rich_text': rich(error)},
                  **self._run_url_props()}
         self.client.request('PATCH', f'pages/{page}', {'properties': props})
+        self._attempt_assessments.pop(page, None)
 
     def save(self, page, state, status='Partial', error=''):
         raw = json.dumps(state, ensure_ascii=False, allow_nan=False, separators=(',', ':'))
