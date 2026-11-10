@@ -175,6 +175,10 @@ def _expected(instrument, timeframe, start_exclusive, now):
     policy = policy_for(instrument)
     if policy is None:
         return None, "no_close_policy"
+    if policy["type"] == "audited_native":
+        from .audited_sessions import native_expected
+        values = native_expected(policy, timeframe, start_exclusive, now)
+        return values, "audited_native" if values is not None else "audit_calendar_expired_or_out_of_scope"
     if policy['type'] == 'provider_week':
         start_exclusive, now = _utc(start_exclusive), _utc(now)
         grid = provider_week_grid(policy, timeframe,
