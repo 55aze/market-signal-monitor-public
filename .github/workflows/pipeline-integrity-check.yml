@@ -1,0 +1,117 @@
+name: Pipeline integrity verification
+on:
+  push:
+    branches: [fix/pipeline-integrity-20261110]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e . -r requirements-tv.txt
+      - name: Full regression suite
+        run: python -m unittest discover -s tests -v
+      - name: Retrieve integrity-pinned public reporter sources
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, urllib.request
+          root = Path('repair-evidence/pins'); root.mkdir(parents=True, exist_ok=True)
+          pins = [
+            ('1fe3c5c8ef8da85f749e217c336f45fafb4289cd','scripts/reporter_delivery.py','3bf2bfcc6f69e2f454385918d952873ed70a08f033932f6775a446d6bc66cbe3'),
+            ('1fe3c5c8ef8da85f749e217c336f45fafb4289cd','docs/trading-signal-watch-delivery-v3.md',None),
+            ('9b3b6114a6aa577c94e7c8dd2828d4c46d14f67a','scripts/render_signal_report.py','b0fbf453492effadd9b95abf549529374db0021e85006aaae41ad2fba9bf6cfa'),
+            ('72ba4969dffa56158f03d75d9ec8dec352ac7494','styles/report-compact.css','655da3eb419b8fe0dbf22b5e4bdb8d5f849076ddd5707673514f687e2d294eea')]
+          for ref,path,digest in pins:
+              raw = urllib.request.urlopen('https://raw.githubusercontent.com/55aze/market-signal-monitor-public/'+ref+'/'+path, timeout=30).read()
+              if digest and hashlib.sha256(raw).hexdigest() != digest:
+                  raise ValueError('Pinned source hash mismatch: '+path)
+              (root/Path(path).name).write_bytes(raw)
+              print('PIN_VERIFIED',path,hashlib.sha256(raw).hexdigest(),len(raw))
+          PY
+      - name: Inspect native timestamps and allowlisted metadata
+        run: |
+          python - <<'PY'
+          import json,re
+          from pathlib import Path
+          import pandas as pd
+          from market_signal_monitor.scanner import fetch_worker
+          from tvDatafeed import TvDatafeed,Interval
+          root=Path('repair-evidence/native'); root.mkdir(parents=True,exist_ok=True)
+          pairs=[('TVC','DXY',['30m']),('CBOE','VIX',['30m','4H','1D','1W']),('ICEEUR','BRN1!',['30m','4H','1D','1W'])]
+          fields={'name','full_name','exchange','timezone','session','session_display','session_holidays','corrections','subsessions'}
+          metadata=[]; original=getattr(TvDatafeed,'_TvDatafeed__create_df')
+          def capture(raw,symbol):
+              for frame in re.split(r'~m~\d+~m~',raw):
+                  try: msg=json.loads(frame.strip())
+                  except (ValueError,TypeError): continue
+                  if isinstance(msg,dict) and msg.get('m')=='symbol_resolved':
+                      p=msg.get('p',[])
+                      if p and isinstance(p[-1],dict):
+                          metadata.append({'symbol':symbol,'metadata':{k:v for k,v in p[-1].items() if k in fields}})
+              return original(raw,symbol)
+          setattr(TvDatafeed,'_TvDatafeed__create_df',staticmethod(capture))
+          for exchange,symbol,tfs in pairs:
+              client=TvDatafeed()
+              try: client.get_hist(symbol,exchange,Interval.in_30_minute,n_bars=5)
+              except Exception as exc: print('METADATA_ERROR',exchange,symbol,type(exc).__name__)
+              finally:
+                  if client.ws is not None: client.ws.close()
+              for tf in tfs:
+                  instrument={'id':'BRENT' if symbol=='BRN1!' else symbol,'exchange':exchange,'symbol':symbol,'extended_session':False}
+                  try:
+                      bars=fetch_worker(instrument,tf,2200,timeout=30,attempts=2)
+                      idx=pd.DatetimeIndex(bars.index).tz_convert('UTC')
+                      name=instrument['id']+'-'+tf
+                      (root/(name+'.json')).write_text(json.dumps([x.isoformat() for x in idx]))
+                      print('NATIVE_AUDIT',name,len(idx),idx[0].isoformat(),idx[-1].isoformat())
+                  except Exception as exc: print('NATIVE_AUDIT_ERROR',instrument['id'],tf,type(exc).__name__)
+          (root/'metadata.json').write_text(json.dumps(metadata,indent=2))
+          PY
+      - name: Read-only persisted health audit
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os,json
+          from market_signal_monitor.notion import Notion
+          from market_signal_monitor.state_store import plain
+          client=Notion(os.environ['NOTION_TOKEN'],'','')
+          rows=list(client.query('51a5d605-6ed8-462a-901d-e9d20c07cbfc',{'property':'Stream','title':{'is_not_empty':True}}))
+          counts={}; conflicts=0
+          for row in rows:
+              p=row['properties']; name=plain(p['Stream'])
+              status=(p.get('Scan Status',{}).get('select') or {}).get('name')
+              outer=(p.get('Freshness Status',{}).get('select') or {}).get('name')
+              raw=plain(p.get('Current Structure',{})); snap=json.loads(raw) if raw else {}
+              f=snap.get('freshness',{}); inner=f.get('status'); counts[status]=counts.get(status,0)+1
+              mapped={'current':'Current','stale_tail':'Stale','interior_gap':'Gap'}.get(inner,'Unverifiable')
+              conflicts+=outer!=mapped
+              if outer!='Current' or status!='Success' or outer!=mapped:
+                  print('STREAM_HEALTH',json.dumps({'stream':name,'status':status,'outer':outer,'inner':inner,'verified_at':f.get('checked_at'),'actual_latest':f.get('actual_latest'),'error':plain(p.get('Error',{}))[:400]}))
+          print('HEALTH_TOTAL',json.dumps({'rows':len(rows),'statuses':counts,'freshness_conflicts':conflicts}))
+          page=client.request('GET','pages/3e2ad04b-46a6-8186-9613-d2749e176bea')['properties']
+          packet=json.loads(plain(page['Packet'])); delivered=plain(page['Delivered IDs'])
+          print('REPORT_HEALTH',json.dumps({'as_of':packet.get('as_of'),'items':len(packet.get('report_items',[])),'packet_chars':len(plain(page['Packet'])),'delivered_chars':len(delivered),'coverage':packet.get('coverage')}))
+          PY
+      - name: Upload public-source evidence only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-integrity-evidence
+          retention-days: 14
+          path: |
+            repair-evidence/
+            src/
+            tests/
+            scripts/
+            pyproject.toml
+            config/universe.example.json
+            pine/
