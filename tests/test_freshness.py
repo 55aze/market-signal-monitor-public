@@ -77,7 +77,7 @@ class FreshnessTests(unittest.TestCase):
 
     def test_candidate_continuous_market_is_not_falsely_called_gap(self):
         brent = {
-            "id": "BRENT", "exchange": "ICEEUR", "symbol": "BRN1!",
+            "id": "UNREVIEWED", "exchange": "TEST", "symbol": "UNREVIEWED",
             "confirmation": {"type": "continuous_interval", "id": "candidate-v1"},
         }
         index = pd.to_datetime(["2026-09-11T00:00Z", "2026-09-11T04:00Z"], utc=True)
@@ -98,8 +98,6 @@ class FreshnessTests(unittest.TestCase):
         )
         self.assertEqual(result["status"], "current")
         self.assertEqual(result["missing_count"], 0)
-        # Published 19:00 NY open is 23:00 UTC in September, two bars
-        # earlier than the old 20:00 NY assumption. Keep recording all omissions.
         self.assertEqual(result["session_open_variance_count"], 14)
         self.assertEqual(result["session_open_variance_bar_opens"][0],
                          "2026-09-20T23:00:00+00:00")
