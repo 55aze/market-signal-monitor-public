@@ -18,22 +18,26 @@ def policy_for(instrument):
         return {'type': 'provider_week', 'timezone': 'America/New_York',
                 'feed': instrument['symbol'], 'id': instrument['symbol'].lower() + '-provider-week-v1'}
     if instrument.get("id") in _TREASURY_YIELD_IDS:
-        # Real TVC bars use different anchors by timeframe. The September audit
-        # showed 30m at 20:00->17:30 New York and 4H/1D/1W at 19:00 anchors.
-        # TVC may omit an illiquid prefix at a session reopen while retaining
-        # later aligned bars; freshness handles that prefix separately.
+        # Native symbol_resolved metadata (Nov 9) publishes 19:00->17:30 NY.
+        # Some summer 30m captures start an hour later; the existing optional
+        # reopen-prefix rule records that omission without forgiving interiors.
+        # Higher-TF native label/close conventions remain unchanged.
         return {"type": "overnight_calendar", "calendar": "SIFMA_US",
                 "timezone": "America/New_York",
-                "session_open_by_tf": {"30m": "20:00", "4H": "19:00", "1D": "19:00", "1W": "19:00"},
+                "session_open_by_tf": {"30m": "19:00", "4H": "19:00", "1D": "19:00", "1W": "19:00"},
                 "session_close_by_tf": {"30m": "17:30", "4H": "19:00", "1D": "19:00", "1W": "19:00"},
                 "optional_session_open_prefix": ["30m", "4H"],
-                "id": "tvc-us-yield-session-v3"}
+                "id": "tvc-us-yield-session-v4"}
     if instrument.get("id") == "JPYUSD":
         return {"type": "fixed_week", "timezone": "UTC",
                 "week_open_weekday": 6, "week_open": "22:00",
                 "week_close_weekday": 4, "week_close": "22:00",
                 "week_close_by_tf": {"30m": "21:30"},
-                "id": "fx-idc-24x5-provider-grid-v2"}
+                # Native Friday 21:30 bars first appear on Oct 23. Keep the
+                # earlier grid intact rather than inventing old missing bars.
+                "week_close_changes_by_tf": {
+                    "30m": [("2026-10-23", "22:00")]},
+                "id": "fx-idc-24x5-provider-grid-v3"}
     if instrument.get("id") in _US_INDEX_IDS:
         return {"type": "exchange_calendar", "calendar": "NYSE",
                 "timezone": "America/New_York", "close_label_timeframes": ["30m"],
@@ -263,6 +267,14 @@ def _provider_week_times(bars, policy, timeframe, strict_since):
     return result
 
 
+def _week_close_time(policy, timeframe, close_day):
+    hhmm = policy.get("week_close_by_tf", {}).get(timeframe, policy["week_close"])
+    for effective, changed in policy.get("week_close_changes_by_tf", {}).get(timeframe, ()):
+        if close_day >= pd.Timestamp(effective).date():
+            hhmm = changed
+    return hhmm
+
+
 def _fixed_week_bounds(policy, stamp, timeframe):
     tz = policy["timezone"]
     wall = stamp.tz_convert(tz)
@@ -271,13 +283,12 @@ def _fixed_week_bounds(policy, stamp, timeframe):
     open_day = (wall.normalize() - pd.Timedelta(days=days_back)).date()
     opening = _wall(open_day, policy["week_open"], tz)
     close_day = open_day + pd.Timedelta(days=(close_wd - open_wd) % 7)
-    close_hhmm = policy.get("week_close_by_tf", {}).get(timeframe, policy["week_close"])
-    closing = _wall(close_day, close_hhmm, tz)
+    closing = _wall(close_day, _week_close_time(policy, timeframe, close_day), tz)
     if wall < opening:
         open_day = open_day - pd.Timedelta(days=7)
         opening = _wall(open_day, policy["week_open"], tz)
         close_day = open_day + pd.Timedelta(days=(close_wd - open_wd) % 7)
-        closing = _wall(close_day, close_hhmm, tz)
+        closing = _wall(close_day, _week_close_time(policy, timeframe, close_day), tz)
     return opening.tz_convert("UTC"), closing.tz_convert("UTC")
 
 

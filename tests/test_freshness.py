@@ -98,9 +98,11 @@ class FreshnessTests(unittest.TestCase):
         )
         self.assertEqual(result["status"], "current")
         self.assertEqual(result["missing_count"], 0)
-        self.assertEqual(result["session_open_variance_count"], 12)
+        # Published 19:00 NY open is 23:00 UTC in September, two bars
+        # earlier than the old 20:00 NY assumption. Keep recording all omissions.
+        self.assertEqual(result["session_open_variance_count"], 14)
         self.assertEqual(result["session_open_variance_bar_opens"][0],
-                         "2026-09-21T00:00:00+00:00")
+                         "2026-09-20T23:00:00+00:00")
 
     def test_treasury_hole_after_first_session_bar_remains_data_gap(self):
         index = pd.to_datetime([

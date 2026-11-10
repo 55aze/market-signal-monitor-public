@@ -127,8 +127,8 @@ def _fixed_week_expected(policy, timeframe, start_exclusive, now):
     probe = start_exclusive - pd.Timedelta(days=7)
     opening, closing = _fixed_week_bounds(policy, probe, timeframe)
     while closing <= start_exclusive:
-        opening += pd.Timedelta(days=7)
-        closing += pd.Timedelta(days=7)
+        opening, closing = _fixed_week_bounds(
+            policy, opening + pd.Timedelta(days=7), timeframe)
     expected = []
     while opening <= now:
         if timeframe == "1W":
@@ -148,8 +148,8 @@ def _fixed_week_expected(policy, timeframe, start_exclusive, now):
                 if cursor > start_exclusive and confirmed <= now:
                     expected.append(cursor)
                 cursor += duration
-        opening += pd.Timedelta(days=7)
-        closing += pd.Timedelta(days=7)
+        opening, closing = _fixed_week_bounds(
+            policy, opening + pd.Timedelta(days=7), timeframe)
     return sorted(set(expected))
 
 

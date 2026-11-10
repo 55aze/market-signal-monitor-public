@@ -26,7 +26,7 @@ class SessionDSTTests(unittest.TestCase):
                 treasury = instrument['id'].startswith('US')
                 for tf in ('30m', '4H', '1D', '1W'):
                     with self.subTest(day=day, instrument=instrument['id'], tf=tf):
-                        hour = (20 if tf == '30m' else 19) if treasury else (18 if tf == '30m' else 17)
+                        hour = 19 if treasury else (18 if tf == '30m' else 17)
                         opening = pd.Timestamp(day, tz='UTC') + pd.Timedelta(hours=hour+offset)
                         delta = {'30m': pd.Timedelta(minutes=30), '4H': pd.Timedelta(hours=4),
                                  '1D': pd.Timedelta(days=1), '1W': pd.Timedelta(days=5)}[tf]
@@ -63,32 +63,24 @@ class SessionDSTTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     confirmation_times(pd.DataFrame(index=pd.to_datetime([stamp], utc=True)), instrument, tf)
 
-    def test_ordinary_evening_30m_policy_mismatch_is_not_fixed_by_dst_helper(self):
-        # Timestamp-only fixture, not a native OHLC capture. Keep this policy
-        # limitation visible: a 19:00 ET label precedes the configured 20:00
-        # 30m open even on a day with no clock transition.
+    def test_audited_november_30m_open_is_midnight_utc(self):
         stamp = pd.Timestamp('2026-11-04T00:00Z')
         frame = pd.DataFrame(index=pd.DatetimeIndex([stamp]))
-        self.assertEqual(stamp.tz_convert('America/New_York').strftime('%Y-%m-%d %H:%M'),
-                         '2026-11-03 19:00')
         for name in ('US02Y', 'US05Y', 'US10Y', 'US30Y'):
             instrument = dict(id=name, symbol=name, exchange='TVC')
             with self.subTest(name=name):
-                with self.assertRaisesRegex(ValueError, 'overnight provider session anchor'):
-                    confirmation_times(frame, instrument, '30m')
-                # The same label is valid under the existing higher-TF policy.
+                self.assertEqual(confirmation_times(frame, instrument, '30m'),
+                                 [stamp + pd.Timedelta(minutes=30)])
+                # Higher TF behavior is deliberately unchanged.
                 for tf, hours in [('4H', 4), ('1D', 24)]:
                     self.assertEqual(confirmation_times(frame, instrument, tf),
                                      [stamp + pd.Timedelta(hours=hours)])
-                aligned = pd.DataFrame(index=pd.DatetimeIndex([stamp + pd.Timedelta(hours=1)]))
-                self.assertEqual(confirmation_times(aligned, instrument, '30m'),
-                                 [stamp + pd.Timedelta(minutes=90)])
 
     def test_optional_reopen_prefix_does_not_allow_out_of_session_30m_bar(self):
         instrument = dict(id='US02Y', symbol='US02Y', exchange='TVC')
         # The preceding session's final bar and an out-of-policy next label.
         # The prefix exception can waive absent aligned bars, not validate an
         # observed bar outside the session; validation must still reject it.
-        index = pd.to_datetime(['2026-11-03T22:00Z', '2026-11-04T00:00Z'], utc=True)
+        index = pd.to_datetime(['2026-11-03T22:00Z', '2026-11-03T23:30Z'], utc=True)
         with self.assertRaisesRegex(ValueError, 'overnight provider session anchor'):
             confirmation_times(pd.DataFrame(index=index), instrument, '30m', strict_since=index[0])

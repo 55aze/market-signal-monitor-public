@@ -71,7 +71,7 @@ class PolicyCoverageTests(unittest.TestCase):
         for name in ['US02Y', 'US05Y', 'US10Y', 'US30Y']:
             instrument = self.instruments[name]
             self.assertNotIn('confirmation', instrument)
-            self.assertEqual(policy_for(instrument)['id'], 'tvc-us-yield-session-v3')
+            self.assertEqual(policy_for(instrument)['id'], 'tvc-us-yield-session-v4')
             cases = {
                 '30m': ('2026-09-11T21:00Z', '2026-09-11T21:30Z'),
                 '4H': ('2026-09-11T19:00Z', '2026-09-11T23:00Z'),
@@ -91,7 +91,7 @@ class PolicyCoverageTests(unittest.TestCase):
 
     def test_jpyusd_fixed_24x5_grid(self):
         instrument = self.instruments['JPYUSD']
-        self.assertEqual(policy_for(instrument)['id'], 'fx-idc-24x5-provider-grid-v2')
+        self.assertEqual(policy_for(instrument)['id'], 'fx-idc-24x5-provider-grid-v3')
         cases = {
             '30m': ('2026-09-11T21:00Z', '2026-09-11T21:30Z'),
             '4H': ('2026-09-11T18:00Z', '2026-09-11T22:00Z'),
